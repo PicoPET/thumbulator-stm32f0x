@@ -367,7 +367,23 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
         return 0;
       }
 
-      fprintf(stderr, "Error: DLR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
+      // Check for general GPIO.
+      if (address >= MEMMAPIO_START && address < MEMMAPIO_START + MEMMAPIO_SIZE)
+      {
+        fprintf(stderr,  "WARNING: arbitrary GPIO read: 0x%8.8X, pc=%x, returning 0...\n", address, cpu_get_pc());
+        *value = 0;
+        return 0;
+      }
+
+        // Check for general Cortex-M0+ peripheral access.
+      if (address >= M0PLUSPERIPHS_START && address < M0PLUSPERIPHS_START + M0PLUSPERIPHS_SIZE)
+      {
+        fprintf(stderr,  "WARNING: arbitrary Cortex-M0+ peripherals read: 0x%8.8X, pc=%x, returning 0...\n", address, cpu_get_pc());
+        *value = 0;
+        return 0;
+      }
+
+      fprintf(stderr, "Error: LoadData_internal DLR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
 
@@ -379,7 +395,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
     }
 
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
-      
+
     #if PRINT_MEM_OPS
       if(!falseRead) printf("%llu\t%llu\tR\t%8.8X\t%d\n", cycleCount, insnCount, address, *value);
     #endif
@@ -417,7 +433,7 @@ char simStoreData(u32 address, u32 value)
   #if MEM_CHECKS
     if((address & 0x3) != 0) // Thumb-mode requires LSB = 1
     {
-      fprintf(stderr, "Unalinged data memory write: 0x%8.8X\n", address);
+      fprintf(stderr, "Unalinged data memory write: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
   #endif
@@ -454,7 +470,7 @@ char simStoreData(u32 address, u32 value)
       }
 
       // Check for cycle count
-      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START+MEMMAPIO_SIZE))
+      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_MAPPEDSIZE))
       {
         word = *(mmio[((address & 0xfffffffc)-MEMMAPIO_START >> 2)]);
         word &= ~(0xff << (8*(address%4)));
@@ -472,7 +488,38 @@ char simStoreData(u32 address, u32 value)
         return 0;
       }
 
-      fprintf(stderr, "Error: DSR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
+      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_SIZE))
+      {
+        // TeamPlay specific: Raising/clearing GPIOC[0] causes a cycle count message on console.
+        if (value == 0x1)
+        {
+          if (address == (MEMMAPIO_START + 0x08000818))
+          {
+            // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
+            fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+            return 0;
+          }
+          else if (address == (MEMMAPIO_START + 0x08000828))
+          {
+            // Write 0x1 to GPIOC_BRR[0]: clear the GPIOC[0] pin
+            fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+            return 0;
+          }
+        }
+
+        fprintf(stderr, "WARNING: Writing to MMIO space: 0x%08x@0x%8.8X, pc=%x, operation IGNORED\n", value, address, cpu_get_pc());
+        return 0;
+
+      }
+
+      // Check for general Cortex-M0+ peripheral access.
+      if (address >= M0PLUSPERIPHS_START && address < M0PLUSPERIPHS_START + M0PLUSPERIPHS_SIZE)
+      {
+        fprintf(stderr,  "WARNING: arbitrary Cortex-M0+ peripherals write: 0x%08x@0x%8.8X, pc=%x, operation IGNORED\n", value, address, cpu_get_pc());
+        return 0;
+      }
+
+      fprintf(stderr, "Error: DStore Memory access out of range: 0x%08x@0x%8.8X, pc=%x\n", value, address, cpu_get_pc());
       sim_exit(1);
     }
 
@@ -576,7 +623,7 @@ char simDebugRead(u32 address, unsigned char* value)
       }
 
       // Check for cycle count
-      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START+MEMMAPIO_SIZE))
+      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_MAPPEDSIZE))
       {
         //word = *((u32 *) (((void*)mmio)+((address & 0xfffffffc)-MEMMAPIO_START))) & 0xffffffff;
         word = *(mmio[((address & 0xfffffffc)-MEMMAPIO_START >> 2)]);
@@ -593,7 +640,7 @@ char simDebugRead(u32 address, unsigned char* value)
         return 0;
       }
 
-      fprintf(stderr, "Error: DLR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
+      fprintf(stderr, "Error: DebugRead DSR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
 
@@ -603,7 +650,7 @@ char simDebugRead(u32 address, unsigned char* value)
   {
     if(address >= (FLASH_START + FLASH_SIZE))
     {
-      fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
+      fprintf(stderr, "Error: DSF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
 
@@ -647,7 +694,7 @@ char simDebugWrite(u32 address, unsigned char value)
       }
 
       // Check for cycle count
-      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START+MEMMAPIO_SIZE))
+      if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START+MEMMAPIO_MAPPEDSIZE))
       {
         word = *(mmio[((address & 0xfffffffc)-MEMMAPIO_START >> 2)]);
         word &= ~(0xff << (8*(address%4)));
@@ -658,9 +705,13 @@ char simDebugWrite(u32 address, unsigned char value)
 
         return 0;
       }
+      else if (address >= MEMMAPIO_START && address < (MEMMAPIO_START + MEMMAPIO_SIZE))
+      {
+        fprintf(stderr, "WARNING: Writing to MMIO space: 0x%8.8X, pc=%x, operation IGNORED\n");
+        return 0;
+      }
 
-
-      fprintf(stderr, "Error: DLR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
+      fprintf(stderr, "Error: DSR Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
 
