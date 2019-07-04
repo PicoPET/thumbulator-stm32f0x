@@ -3,16 +3,19 @@
 
 #include <stdio.h>
 
-#define RAM_START           0x40000000
-#define RAM_SIZE            (1 << 23) // 8 MB
-#define RAM_ADDRESS_MASK    (((~0) << 23) ^ (~0))
-#define FLASH_START         0x0
-#define FLASH_SIZE          (1 << 23) // 8 MB
-#define FLASH_ADDRESS_MASK  (((~0) << 23) ^ (~0))
-#define CPU_FREQ            24000000
-#define MEMMAPIO_START      0x80000000
-#define MEMMAPIO_SIZE       (4*19)
-#define WATCHPOINT_ADDR     0x80000010
+#define RAM_START           0x20000000
+#define RAM_SIZE            (1 << 16) // 64KiB
+#define RAM_ADDRESS_MASK    (((~0) << 16) ^ (~0))
+#define FLASH_START         0x08000000
+#define FLASH_SIZE          (1 << 20) // 1 MiB
+#define FLASH_ADDRESS_MASK  (((~0) << 20) ^ (~0))
+#define CPU_FREQ            48000000
+#define MEMMAPIO_START      0x40000000
+#define MEMMAPIO_MAPPEDSIZE (4*18)      // Size of actual memory image
+#define MEMMAPIO_SIZE       0x08001800  // Size of MMIO address window in memory map
+#define M0PLUSPERIPHS_START 0xE0000000
+#define M0PLUSPERIPHS_SIZE  0x00100000
+#define WATCHPOINT_ADDR     0x40000010
 
 typedef __uint32_t u32;
 typedef __uint64_t u64;
@@ -59,7 +62,7 @@ char simStoreData(u32 address, u32 value);
 // Macros for Ratchet
 #define PRINT_CHECKPOINTS 0                 // Print checkpoint info
 #define MEM_COUNT_INST 0                    // Track and report program loads, stores, and checkpoints
-#define PRINT_MEM_OPS 1                     // Prints detailed info for each program-generated memory access (Clank)
+#define PRINT_MEM_OPS 0                     // Prints detailed info for each program-generated memory access (Clank)
 #define INCREMENT_CYCLES(x) {\
   cycleCount += x;           \
   cyclesSinceReset += x;     \
