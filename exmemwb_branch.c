@@ -76,6 +76,16 @@ u32 b()
     u32 offset = signExtend32(decoded.imm << 1, 12);
     
     diss_printf("B 0x%08X\n", offset);
+
+    // Stop simulation on a branch-to-self, i.e., when offset == 0xfffffffc.
+    if (offset == 0xfffffffc)
+    {
+        printf("Program exit (branch-to-self) after\n\t%llu ticks\n\t%llu instructions\n", cycleCount, insnCount);
+        #if MEM_COUNT_INST
+            printf("Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
+        #endif
+        sim_exit(0);
+    }
     
     u32 result = offset + cpu_get_pc();
     cpu_set_pc(result);
