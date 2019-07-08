@@ -26,6 +26,12 @@ u32 PRINT_STATE_DIFF = PRINT_STATE_DIFF_INIT;
 #endif
 u32 ram[RAM_SIZE >> 2];
 u32 flash[FLASH_SIZE >> 2];
+u64 ram_data_reads = 0;
+u64 ram_insn_reads = 0;
+u64 ram_writes = 0;
+u64 flash_data_reads = 0;
+u64 flash_insn_reads = 0;
+u64 flash_writes = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -44,6 +50,37 @@ u32* mmio[] = {&cycleCount, ((u32*)&cycleCount)+1, &wastedCycles, ((u32*)&wasted
   &resetAfterCycles, &do_reset, &PRINT_STATE_DIFF, &wdt_seed, 
   &wdt_val, &(md5[0]), &(md5[1]), &(md5[2]), 
   &(md5[3]), &(md5[4])};
+
+void printOpcodeCounts(u64 subcode_stats[], u32 count)
+{
+    u32 i;
+    fprintf(stderr, ", [");
+    for (i = 0; i < count - 1; i++)
+        fprintf(stderr, "%ld, ", subcode_stats[i]);
+
+    fprintf(stderr, "%ld]\n", subcode_stats[i]);
+}
+
+// Print execution statistics.
+void printStats(void)
+{
+    u32 i;
+#if MEM_COUNT_INST
+    fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
+#endif
+    fprintf(stderr, "RAM data reads:   %12lld\n", ram_data_reads);
+    fprintf(stderr, "RAM insn reads:   %12lld\n", ram_insn_reads);
+    fprintf(stderr, "RAM writes:       %12lld\n", ram_writes);
+    fprintf(stderr, "Flash data reads: %12lld\n", flash_data_reads);
+    fprintf(stderr, "Flash insn reads: %12lld\n", flash_insn_reads);
+    fprintf(stderr, "Flash writes:     %12lld\n", flash_writes);
+    fprintf(stderr, "Opcode statistics:\n");
+    for (i = 0; i < 64; i++)
+    {
+        fprintf(stderr, "%2d: %9ld", i, primary_opcode_stats[i]);
+        printOpcodeCounts(opcode_stats[i], 16);
+    }
+}
 
 // Reset CPU state in accordance with B1.5.5 and B3.2.2
 void cpu_reset(void)
@@ -307,6 +344,7 @@ char simLoadInsn(u32 address, u16 *value)
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
 
+    ram_insn_reads++;
     fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
   }
   else
@@ -317,6 +355,7 @@ char simLoadInsn(u32 address, u16 *value)
       sim_exit(1);
     }
 
+    flash_insn_reads++;
     fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
   }
     
@@ -394,6 +433,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
 
+    ram_data_reads++;
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
     #if PRINT_MEM_OPS
@@ -412,6 +452,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       sim_exit(1);
     }
 
+    flash_data_reads++;
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
     #if PRINT_MEM_OPS
@@ -497,12 +538,14 @@ char simStoreData(u32 address, u32 value)
           {
             // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
             fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+            printStats();
             return 0;
           }
           else if (address == (MEMMAPIO_START + 0x08000828))
           {
             // Write 0x1 to GPIOC_BRR[0]: clear the GPIOC[0] pin
             fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+            printStats();
             return 0;
           }
         }
@@ -552,7 +595,8 @@ char simStoreData(u32 address, u32 value)
     #endif
 
     ram[(address & RAM_ADDRESS_MASK) >> 2] = value;
-    
+    ram_writes++;
+
     #if MEM_COUNT_INST
       ++store_count;
     #endif
@@ -576,6 +620,7 @@ char simStoreData(u32 address, u32 value)
     #endif
       
     flash[(address & FLASH_ADDRESS_MASK) >> 2] = value;
+    flash_writes++;
       
     #if MEM_COUNT_INST
       ++store_count;

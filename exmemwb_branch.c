@@ -70,16 +70,6 @@ u32 tst()
 
 ///--- Branch operations --------------------------------------------///
 
-void printOpcodeCounts(u64 subcode_stats[], u32 count)
-{
-    u32 i;
-    printf(", [");
-    for (i = 0; i < count - 1; i++)
-        printf("%ld, ", subcode_stats[i]);
-
-    printf("%ld]\n", subcode_stats[i]);
-}
-
 // B - Unconditional branch
 u32 b()
 {
@@ -90,17 +80,8 @@ u32 b()
     // Stop simulation on a branch-to-self, i.e., when offset == 0xfffffffc.
     if (offset == 0xfffffffc)
     {
-        u32 i;
         printf("Program exit (branch-to-self) after\n\t%llu ticks\n\t%llu instructions\n", cycleCount, insnCount);
-        #if MEM_COUNT_INST
-            printf("Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
-        #endif
-        printf("Opcode statistics:\n");
-        for (i = 0; i < 64; i++)
-        {
-            printf("%2d: %9ld", i, primary_opcode_stats[i]);
-            printOpcodeCounts(opcode_stats[i], 16);
-        }
+        // printStats();
         sim_exit(0);
     }
     

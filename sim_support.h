@@ -28,6 +28,12 @@ typedef char bool;
 // Core CPU compenents
 extern u32 ram[RAM_SIZE >> 2];
 extern u32 flash[FLASH_SIZE >> 2];
+extern u64 ram_data_reads;
+extern u64 ram_insn_reads;
+extern u64 ram_writes;
+extern u64 flash_data_reads;
+extern u64 flash_insn_reads;
+extern u64 flash_writes;
 extern bool takenBranch;    // Informs fetch that previous instruction caused a control flow change
 extern void sim_exit(int);  // All sim ends lead through here
 void cpu_reset();           // Resets the CPU according to the specification
@@ -111,7 +117,7 @@ extern u32 PRINT_STATE_DIFF;
     void (* gprWriteHooks[16])(void);
 #endif
 char simValidMem(u32 address); // Interface for rsp (GDB) server
-
+extern void printStats(void);
 
 //struct MEMMAPIO {
 //  u32 *cycleCountLSB;
