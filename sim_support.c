@@ -32,6 +32,7 @@ u64 ram_writes = 0;
 u64 flash_data_reads = 0;
 u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
+u64 taken_branches = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -74,6 +75,7 @@ void printStats(void)
     fprintf(stderr, "Flash data reads: %12lld\n", flash_data_reads);
     fprintf(stderr, "Flash insn reads: %12lld\n", flash_insn_reads);
     fprintf(stderr, "Flash writes:     %12lld\n", flash_writes);
+    fprintf(stderr, "Taken branches:   %12lld\n", taken_branches);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {

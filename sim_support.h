@@ -34,6 +34,7 @@ extern u64 ram_writes;
 extern u64 flash_data_reads;
 extern u64 flash_insn_reads;
 extern u64 flash_writes;
+extern u64 taken_branches;
 extern bool takenBranch;    // Informs fetch that previous instruction caused a control flow change
 extern void sim_exit(int);  // All sim ends lead through here
 void cpu_reset();           // Resets the CPU according to the specification
