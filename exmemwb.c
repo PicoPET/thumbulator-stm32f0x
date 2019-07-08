@@ -5,6 +5,11 @@
 
 u16 insn;
 
+// Instruction statistics: 64 opcodes, up to 16 variants per opcode
+// (not all variants are used for all opcodes)
+u64 opcode_stats[64][16];
+u64 primary_opcode_stats[64];
+
 #if HOOK_GPR_ACCESSES
     u32 cpu_get_gpr(u32 gpr)
     {
@@ -111,6 +116,8 @@ u32 (* executeJumpTable6[2])(void) = { \
 
 u32 entry6(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[6][(insn >> 9) & 0x1]++;
     return executeJumpTable6[(insn >> 9) & 0x1]();
 }
 
@@ -121,6 +128,8 @@ u32 (* executeJumpTable7[2])(void) = { \
 
 u32 entry7(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[7][(insn >> 9) & 0x1]++;
     return executeJumpTable7[(insn >> 9) & 0x1]();
 }
 
@@ -145,6 +154,8 @@ u32 (* executeJumpTable16[16])(void) = { \
 
 u32 entry16(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[16][(insn >> 6) & 0xF]++;
     return executeJumpTable16[(insn >> 6) & 0xF]();
 }
 
@@ -161,6 +172,8 @@ u32 (* executeJumpTable17[8])(void) = { \
 
 u32 entry17(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[17][(insn >> 7) & 0x7]++;
     return executeJumpTable17[(insn >> 7) & 0x7]();
 }
 
@@ -171,6 +184,8 @@ u32 (* executeJumpTable20[2])(void) = { \
 
 u32 entry20(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[20][(insn >> 9) & 0x1]++;
     return executeJumpTable20[(insn >> 9) & 0x1]();
 }
 
@@ -181,6 +196,8 @@ u32 (* executeJumpTable21[2])(void) = { \
 
 u32 entry21(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[21][(insn >> 9) & 0x1]++;
     return executeJumpTable21[(insn >> 9) & 0x1]();
 }
 
@@ -191,6 +208,8 @@ u32 (* executeJumpTable22[2])(void) = { \
 
 u32 entry22(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[22][(insn >> 9) & 0x1]++;
     return executeJumpTable22[(insn >> 9) & 0x1]();
 }
 
@@ -201,6 +220,8 @@ u32 (* executeJumpTable23[2])(void) = { \
 
 u32 entry23(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[23][(insn >> 9) & 0x1]++;
     return executeJumpTable23[(insn >> 9) & 0x1]();
 }
 
@@ -225,6 +246,8 @@ u32 (* executeJumpTable44[16])(void) = { \
 
 u32 entry44(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[44][(insn >> 6) & 0xF]++;
     return executeJumpTable44[(insn >> 6) & 0xF]();
 }
 
@@ -249,6 +272,8 @@ u32 (* executeJumpTable46[16])(void) = { \
 
 u32 entry46(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[46][(insn >> 6) & 0xF]++;
     return executeJumpTable46[(insn >> 6) & 0xF]();
 }
 
@@ -259,6 +284,8 @@ u32 (* executeJumpTable47[2])(void) = { \
 
 u32 entry47(void)
 {
+    // Increment per-opcode stats.
+    opcode_stats[47][(insn >> 9) & 0x1]++;
     return executeJumpTable47[(insn >> 9) & 0x1]();
 }
 
@@ -350,7 +377,9 @@ void exwbmem(const u16 pInsn)
 {
     ++insnCount;
     insn = pInsn;
-    
+
+    // Increment global opcode stats.
+    primary_opcode_stats[pInsn >> 10]++;
     unsigned int insnTicks = executeJumpTable[pInsn >> 10]();
     INCREMENT_CYCLES(insnTicks);
     
