@@ -33,6 +33,7 @@ u64 flash_data_reads = 0;
 u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
+u64 nonword_branch_destinations = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -70,13 +71,14 @@ void printStats(void)
 #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
 #endif
-    fprintf(stderr, "RAM data reads:   %12lld\n", ram_data_reads);
-    fprintf(stderr, "RAM insn reads:   %12lld\n", ram_insn_reads);
-    fprintf(stderr, "RAM writes:       %12lld\n", ram_writes);
-    fprintf(stderr, "Flash data reads: %12lld\n", flash_data_reads);
-    fprintf(stderr, "Flash insn reads: %12lld\n", flash_insn_reads);
-    fprintf(stderr, "Flash writes:     %12lld\n", flash_writes);
-    fprintf(stderr, "Taken branches:   %12lld\n", taken_branches);
+    fprintf(stderr, "RAM data reads:    %12lld\n", ram_data_reads);
+    fprintf(stderr, "RAM insn reads:    %12lld\n", ram_insn_reads);
+    fprintf(stderr, "RAM writes:        %12lld\n", ram_writes);
+    fprintf(stderr, "Flash data reads:  %12lld\n", flash_data_reads);
+    fprintf(stderr, "Flash insn reads:  %12lld\n", flash_insn_reads);
+    fprintf(stderr, "Flash writes:      %12lld\n", flash_writes);
+    fprintf(stderr, "Taken branches:    %12lld\n", taken_branches);
+    fprintf(stderr, "Non-word branches: %12lld\n", nonword_branch_destinations);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {

@@ -196,6 +196,10 @@ int main(int argc, char *argv[])
         {
 	  if(startTrace)
 	    taken_branches++;
+          // Branching to a target not aligned on a word boundary incurs a penalty on 32-bit-only
+          // memories as the next insn will require a full insn memory access.
+          if (cpu_get_pc() & 0x2)
+            nonword_branch_destinations++;
           cpu_set_pc(cpu_get_pc() + 0x4);
         }
 
