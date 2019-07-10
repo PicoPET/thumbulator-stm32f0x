@@ -42,12 +42,13 @@ char simLoadInsn(u32 address, u16 *value);  // All memory accesses one simulatio
 char simLoadData(u32 address, u32 *value);
 char simLoadData_internal(u32 address, u32 *value, u32 falseRead); // falseRead says whether this is a read due to anything other than the program
 char simStoreData(u32 address, u32 value);
+extern bool startTrace;
 
 // Controls whether the program output prints to the simulator's console or is not printed at all
 #define DISABLE_PROGRAM_PRINTING 1
 
 // Simulator debugging
-#define PRINT_INST 0                                    // diss_printf(): disassembly printing?
+#define PRINT_INST 1                                    // diss_printf(): disassembly printing?
 #define PRINT_ALL_STATE 0                               // Print all registers after each instruction? Used for comparing to original Thumbulator.
 #define PRINT_STATE_DIFF_INIT (0 & (PRINT_ALL_STATE))   // Print changed registers after each instruction?
 #define PRINT_STORES_WITH_STATE (0 & (PRINT_ALL_STATE)) // Print memory written with state updates?
@@ -61,7 +62,7 @@ char simStoreData(u32 address, u32 value);
 #define THUMB_CHECK 1                                   // Verify that the PC stays in thumb mode
 
 #define diff_printf(format, ...) do{ fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } while(0)
-#define diss_printf(format, ...) do{ if (PRINT_INST) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
+#define diss_printf(format, ...) do{ if (PRINT_INST && startTrace) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
 
 // Hooks to run code every time a GPR is accessed
 #define HOOK_GPR_ACCESSES 1         // Currently set to see if stack crosses heap

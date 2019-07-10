@@ -194,7 +194,8 @@ int main(int argc, char *argv[])
         }
         else
         {
-          taken_branches++;
+	  if(startTrace)
+	    taken_branches++;
           cpu_set_pc(cpu_get_pc() + 0x4);
         }
 
