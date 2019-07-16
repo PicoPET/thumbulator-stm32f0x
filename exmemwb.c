@@ -375,7 +375,7 @@ u32 (* executeJumpTable[64])() = { \
 
 void exwbmem(const u16 pInsn)
 {
-    if(startTrace)
+    if(tracingActive)
       ++insnCount;
     insn = pInsn;
 

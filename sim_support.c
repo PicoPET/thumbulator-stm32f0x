@@ -26,6 +26,7 @@ u32 PRINT_STATE_DIFF = PRINT_STATE_DIFF_INIT;
 #endif
 u32 ram[RAM_SIZE >> 2];
 u32 flash[FLASH_SIZE >> 2];
+// Event counters
 u64 ram_data_reads = 0;
 u64 ram_insn_reads = 0;
 u64 ram_writes = 0;
@@ -34,6 +35,7 @@ u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
+bool tracingActive = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -42,7 +44,6 @@ int addressConflicts = 0;
 int addressConflictsStack = 0;
 int addressWrites = 0;
 int addressReads = 0;
-bool startTrace = 0;
 
 // Reserve a space inside the simulator for variables that GDB and python can use to control the simulator
 // Essentially creates a new block of addresses on the bus of the processor that only the debug read and write commands can access
@@ -259,11 +260,13 @@ void sim_command(void)
 
   void report_sp(void)
   {
+    #if 0  // This is a hard-coded value, applicable only to specific targets...
     if(cpu_get_sp() < 0X40010000)
     {
       fprintf(stderr, "SP crosses heap: 0x%8.8X\n", cpu_get_sp());
       fprintf(stderr, "PC: 0x%8.8X\n", cpu_get_pc());
     }
+    #endif
   }
 
   void (* gprReadHooks[16])(void) = { \
@@ -394,7 +397,7 @@ char simLoadInsn(u32 address, u16 *value)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if (startTrace)
+    if (tracingActive)
       ram_insn_reads++;
     fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
   }
@@ -405,7 +408,7 @@ char simLoadInsn(u32 address, u16 *value)
       fprintf(stderr, "Error: ILF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if(startTrace)
+    if(tracingActive)
       flash_insn_reads++;
     fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
   }
@@ -483,7 +486,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if (startTrace)
+    if (tracingActive)
       ram_data_reads++;
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
@@ -502,7 +505,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if(startTrace)
+    if (tracingActive)
       flash_data_reads++;
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
@@ -583,22 +586,27 @@ char simStoreData(u32 address, u32 value)
       if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_SIZE))
       {
         // TeamPlay specific: Raising/clearing GPIOC[0] causes a cycle count message on console.
-        if (value == 0x1)
+        if (value == 0x1 && address == (MEMMAPIO_START + 0x08000818))
         {
-          if (address == (MEMMAPIO_START + 0x08000818))
-          { 
-	    startTrace =1;
-            // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
-            fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-            printStatsCSV();
-            return 0;
-          }
-          else if (address == (MEMMAPIO_START + 0x08000828))
+          // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
+          fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          // Start the logging of events.
+          tracingActive = 1;
+          // printStats();
+          printStatsCSV();
+          return 0;
+        }
+        else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
+                 || (value == 0x00010000 && address == (MEMMAPIO_START + 0x08000818)))
+        {
+          // Write 0x1 to GPIOC_BRR[0] or 0x1 to GPIOC_BSRR[16]: clear the GPIOC[0] pin
+          fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          if (tracingActive)
           {
-            // Write 0x1 to GPIOC_BRR[0]: clear the GPIOC[0] pin
-            fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+            // Stop the logging of events.
+            tracingActive = 0;
+            // printStats();
             printStatsCSV();
-	    startTrace =0;
             return 0;
           }
         }
@@ -648,7 +656,7 @@ char simStoreData(u32 address, u32 value)
     #endif
 
     ram[(address & RAM_ADDRESS_MASK) >> 2] = value;
-    if (startTrace)
+    if (tracingActive)
       ram_writes++;
 
     #if MEM_COUNT_INST
@@ -674,7 +682,7 @@ char simStoreData(u32 address, u32 value)
     #endif
       
     flash[(address & FLASH_ADDRESS_MASK) >> 2] = value;
-    if(startTrace)
+    if (tracingActive)
       flash_writes++;
       
     #if MEM_COUNT_INST
