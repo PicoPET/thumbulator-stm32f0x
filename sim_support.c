@@ -26,6 +26,7 @@ u32 PRINT_STATE_DIFF = PRINT_STATE_DIFF_INIT;
 #endif
 u32 ram[RAM_SIZE >> 2];
 u32 flash[FLASH_SIZE >> 2];
+// Event counters
 u64 ram_data_reads = 0;
 u64 ram_insn_reads = 0;
 u64 ram_writes = 0;
@@ -538,22 +539,20 @@ char simStoreData(u32 address, u32 value)
       if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_SIZE))
       {
         // TeamPlay specific: Raising/clearing GPIOC[0] causes a cycle count message on console.
-        if (value == 0x1)
+        if (value == 0x1 && address == (MEMMAPIO_START + 0x08000818))
         {
-          if (address == (MEMMAPIO_START + 0x08000818))
-          {
-            // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
-            fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-            printStats();
-            return 0;
-          }
-          else if (address == (MEMMAPIO_START + 0x08000828))
-          {
-            // Write 0x1 to GPIOC_BRR[0]: clear the GPIOC[0] pin
-            fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-            printStats();
-            return 0;
-          }
+          // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
+          fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          printStats();
+          return 0;
+        }
+        else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
+                 || (value == 0x00010000 && address == (MEMMAPIO_START + 0x08000818)))
+        {
+          // Write 0x1 to GPIOC_BRR[0] or 0x1 to GPIOC_BSRR[16]: clear the GPIOC[0] pin
+          fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          printStats();
+          return 0;
         }
 
         fprintf(stderr, "WARNING: Writing to MMIO space: 0x%08x@0x%8.8X, pc=%x, operation IGNORED\n", value, address, cpu_get_pc());
