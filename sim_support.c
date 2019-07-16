@@ -35,6 +35,7 @@ u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
+bool tracingActive = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -85,6 +86,52 @@ void printStats(void)
         fprintf(stderr, "%2d: %9ld", i, primary_opcode_stats[i]);
         printOpcodeCounts(opcode_stats[i], 16);
     }
+}
+
+void printOpcodeCountsCSV(FILE *f, u64 subcode_stats[], u32 count)
+{
+    u32 i;
+    for (i = 0; i < count - 1; i++)
+        fprintf(f, "%ld, ", subcode_stats[i]);
+
+    fprintf(f, "%ld\n", subcode_stats[i]);
+}
+
+// Print execution statistics.
+void printStatsCSV(void)
+{
+    u32 i;
+    char filename[256];
+ 
+    static int statsReportCounter = 0;
+    char *str1 = "simulationStats";
+    char *str2 = ".csv\0";
+    
+    sprintf(filename,"%s%d%s", str1,statsReportCounter++, str2);
+
+    FILE *f = fopen(filename, "w");
+    if (f==NULL){
+      fprintf(f, "File for writing stats can't be opened\n");
+      exit(-1);
+    }
+ #if MEM_COUNT_INST
+    fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
+ #endif
+    fprintf(stderr, "RAM data reads:   %12lld\n", ram_data_reads);
+    fprintf(stderr, "RAM insn reads:   %12lld\n", ram_insn_reads);
+    fprintf(stderr, "RAM writes:       %12lld\n", ram_writes);
+    fprintf(stderr, "Flash data reads: %12lld\n", flash_data_reads);
+    fprintf(stderr, "Flash insn reads: %12lld\n", flash_insn_reads);
+    fprintf(stderr, "Flash writes:     %12lld\n", flash_writes);
+    fprintf(stderr, "Taken branches:   %12lld\n", taken_branches);
+    fprintf(f, "Opcode statistics:\n");
+    fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16:\n");
+    for (i = 0; i < 64; i++)
+    {
+        fprintf(f, "%2d, %9ld,", i, primary_opcode_stats[i]);
+        printOpcodeCountsCSV(f, opcode_stats[i], 16);
+    }
+    fclose(f);
 }
 
 // Reset CPU state in accordance with B1.5.5 and B3.2.2
@@ -350,8 +397,8 @@ char simLoadInsn(u32 address, u16 *value)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-
-    ram_insn_reads++;
+    if (tracingActive)
+      ram_insn_reads++;
     fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
   }
   else
@@ -361,8 +408,8 @@ char simLoadInsn(u32 address, u16 *value)
       fprintf(stderr, "Error: ILF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-
-    flash_insn_reads++;
+    if(tracingActive)
+      flash_insn_reads++;
     fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
   }
     
@@ -439,8 +486,8 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-
-    ram_data_reads++;
+    if (tracingActive)
+      ram_data_reads++;
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
     #if PRINT_MEM_OPS
@@ -458,8 +505,8 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-
-    flash_data_reads++;
+    if (tracingActive)
+      flash_data_reads++;
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
     #if PRINT_MEM_OPS
@@ -543,7 +590,10 @@ char simStoreData(u32 address, u32 value)
         {
           // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
           fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-          printStats();
+          // Start the logging of events.
+          tracingActive = 1;
+          // printStats();
+          printStatsCSV();
           return 0;
         }
         else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
@@ -551,8 +601,14 @@ char simStoreData(u32 address, u32 value)
         {
           // Write 0x1 to GPIOC_BRR[0] or 0x1 to GPIOC_BSRR[16]: clear the GPIOC[0] pin
           fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-          printStats();
-          return 0;
+          if (tracingActive)
+          {
+            // Stop the logging of events.
+            tracingActive = 0;
+            // printStats();
+            printStatsCSV();
+            return 0;
+          }
         }
 
         fprintf(stderr, "WARNING: Writing to MMIO space: 0x%08x@0x%8.8X, pc=%x, operation IGNORED\n", value, address, cpu_get_pc());
@@ -600,7 +656,8 @@ char simStoreData(u32 address, u32 value)
     #endif
 
     ram[(address & RAM_ADDRESS_MASK) >> 2] = value;
-    ram_writes++;
+    if (tracingActive)
+      ram_writes++;
 
     #if MEM_COUNT_INST
       ++store_count;
@@ -625,7 +682,8 @@ char simStoreData(u32 address, u32 value)
     #endif
       
     flash[(address & FLASH_ADDRESS_MASK) >> 2] = value;
-    flash_writes++;
+    if (tracingActive)
+      flash_writes++;
       
     #if MEM_COUNT_INST
       ++store_count;

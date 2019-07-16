@@ -375,7 +375,8 @@ u32 (* executeJumpTable[64])() = { \
 
 void exwbmem(const u16 pInsn)
 {
-    ++insnCount;
+    if(tracingActive)
+      ++insnCount;
     insn = pInsn;
 
     // Increment global opcode stats.
