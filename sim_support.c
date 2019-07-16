@@ -102,36 +102,37 @@ void printStatsCSV(void)
 {
     u32 i;
     char filename[256];
+    char overallStatsCsv[500];
  
     static int statsReportCounter = 0;
     char *str1 = "simulationStats";
     char *str2 = ".csv\0";
-    
-    sprintf(filename,"%s%d%s", str1,statsReportCounter++, str2);
+
+    sprintf(filename,"%s%d%s", str1, statsReportCounter++, str2);
+    sprintf(overallStatsCsv, "%s%s%s", simulatingFilePath, "counters", ".csv");
 
     FILE *f = fopen(filename, "w");
-    if (f==NULL){
-      fprintf(f, "File for writing stats can't be opened\n");
+    FILE *f1 = fopen(overallStatsCsv, "a");
+    if (f==NULL || f1==NULL){
+      fprintf(stderr, "File for writing stats can't be opened\n");
       exit(-1);
     }
  #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
-    fprintf(stderr, "RAM data reads:   %12lld\n", ram_data_reads);
-    fprintf(stderr, "RAM insn reads:   %12lld\n", ram_insn_reads);
-    fprintf(stderr, "RAM writes:       %12lld\n", ram_writes);
-    fprintf(stderr, "Flash data reads: %12lld\n", flash_data_reads);
-    fprintf(stderr, "Flash insn reads: %12lld\n", flash_insn_reads);
-    fprintf(stderr, "Flash writes:     %12lld\n", flash_writes);
-    fprintf(stderr, "Taken branches:   %12lld\n", taken_branches);
-    fprintf(f, "Opcode statistics:\n");
-    fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16:\n");
+    if (statsReportCounter == 1)
+      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
+    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", ram_data_reads, ram_insn_reads, ram_writes, 
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches);
+
+    fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)
     {
         fprintf(f, "%2d, %9ld,", i, primary_opcode_stats[i]);
         printOpcodeCountsCSV(f, opcode_stats[i], 16);
     }
     fclose(f);
+    fclose(f1);
 }
 
 // Reset CPU state in accordance with B1.5.5 and B3.2.2

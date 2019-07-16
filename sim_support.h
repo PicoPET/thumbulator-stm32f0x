@@ -44,6 +44,7 @@ char simLoadData(u32 address, u32 *value);
 char simLoadData_internal(u32 address, u32 *value, u32 falseRead); // falseRead says whether this is a read due to anything other than the program
 char simStoreData(u32 address, u32 value);
 extern bool tracingActive;
+extern char* simulatingFilePath;
 
 // Controls whether the program output prints to the simulator's console or is not printed at all
 #define DISABLE_PROGRAM_PRINTING 1

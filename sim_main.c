@@ -7,6 +7,8 @@
 #include "rsp-server.h"
 #include "sim_support.h"
 
+char *simulatingFilePath = 0;
+
 // Load a program into the simulator's RAM
 static void fillState(const char *pFileName)
 {
@@ -24,6 +26,26 @@ static void fillState(const char *pFileName)
     fread(&flash, sizeof(u32), sizeof(flash)/sizeof(u32), fd);
 
     fclose(fd);
+}
+
+//Read the simulated file path
+char* getPath(char *filename) {
+  char *ssc;
+  char *path;
+  int file_length = 0;
+  int path_length = 0;
+  ssc = strrchr(filename, '/');
+  file_length = strlen(ssc);
+  path_length = strlen(filename);
+  path = (char*) malloc((path_length - file_length + 2)*sizeof(char)); /*+1 for '\0' character */
+  if (path == NULL){
+    printf("Faile to allocate string in getPath. Exiting...\n");
+    exit(-1);
+  }
+  strncpy(path,filename, path_length - file_length);
+  path[path_length - file_length] = '/';
+  path[path_length - file_length+1] = '\0';
+  return path;
 }
 
 struct CPU cpu;
@@ -121,6 +143,7 @@ int main(int argc, char *argv[])
     memset(ram, 0, sizeof(ram));
     memset(flash, 0, sizeof(flash));
     fillState(file);
+    simulatingFilePath = getPath(file);
     
     // Initialize CPU state
     cpu_reset();
