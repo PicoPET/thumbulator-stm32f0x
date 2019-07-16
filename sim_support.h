@@ -49,7 +49,7 @@ extern bool startTrace;
 #define DISABLE_PROGRAM_PRINTING 1
 
 // Simulator debugging
-#define PRINT_INST 1                                    // diss_printf(): disassembly printing?
+#define PRINT_INST 0                                    // diss_printf(): disassembly printing?
 #define PRINT_ALL_STATE 0                               // Print all registers after each instruction? Used for comparing to original Thumbulator.
 #define PRINT_STATE_DIFF_INIT (0 & (PRINT_ALL_STATE))   // Print changed registers after each instruction?
 #define PRINT_STORES_WITH_STATE (0 & (PRINT_ALL_STATE)) // Print memory written with state updates?
