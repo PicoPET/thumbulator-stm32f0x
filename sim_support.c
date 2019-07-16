@@ -212,11 +212,13 @@ void sim_command(void)
 
   void report_sp(void)
   {
+    #if 0  // This is a hard-coded value, applicable only to specific targets...
     if(cpu_get_sp() < 0X40010000)
     {
       fprintf(stderr, "SP crosses heap: 0x%8.8X\n", cpu_get_sp());
       fprintf(stderr, "PC: 0x%8.8X\n", cpu_get_pc());
     }
+    #endif
   }
 
   void (* gprReadHooks[16])(void) = { \
