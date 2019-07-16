@@ -5,6 +5,7 @@
 #include "except.h"
 #include "decode.h"
 #include "rsp-server.h"
+#include "sim_support.h"
 
 // Load a program into the simulator's RAM
 static void fillState(const char *pFileName)
