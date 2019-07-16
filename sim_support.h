@@ -43,7 +43,6 @@ char simLoadInsn(u32 address, u16 *value);  // All memory accesses one simulatio
 char simLoadData(u32 address, u32 *value);
 char simLoadData_internal(u32 address, u32 *value, u32 falseRead); // falseRead says whether this is a read due to anything other than the program
 char simStoreData(u32 address, u32 value);
-extern bool startTrace;
 
 // Controls whether the program output prints to the simulator's console or is not printed at all
 #define DISABLE_PROGRAM_PRINTING 1
@@ -63,7 +62,7 @@ extern bool startTrace;
 #define THUMB_CHECK 1                                   // Verify that the PC stays in thumb mode
 
 #define diff_printf(format, ...) do{ fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } while(0)
-#define diss_printf(format, ...) do{ if (PRINT_INST && startTrace) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
+#define diss_printf(format, ...) do{ if (PRINT_INST) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
 
 // Hooks to run code every time a GPR is accessed
 #define HOOK_GPR_ACCESSES 1         // Currently set to see if stack crosses heap
