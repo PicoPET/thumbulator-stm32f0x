@@ -8,6 +8,7 @@
 #include "sim_support.h"
 
 char *simulatingFilePath = 0;
+char *simulatingFileName = 0;
 
 // Load a program into the simulator's RAM
 static void fillState(const char *pFileName)
@@ -29,23 +30,26 @@ static void fillState(const char *pFileName)
 }
 
 //Read the simulated file path
-char* getPath(char *filename) {
-  char *ssc;
-  char *path;
+void getPath(char *filename) {
+  char *name;
   int file_length = 0;
   int path_length = 0;
-  ssc = strrchr(filename, '/');
-  file_length = strlen(ssc);
+  name = strrchr(filename, '/');
+  file_length = strlen(name);
   path_length = strlen(filename);
-  path = (char*) malloc((path_length - file_length + 2)*sizeof(char)); /*+1 for '\0' character */
-  if (path == NULL){
+  simulatingFilePath = (char*) malloc((path_length - file_length + 2)*sizeof(char)); /*+1 for '\0' character and +1 for '/' */
+  simulatingFileName = (char*) malloc((file_length + 1)*sizeof(char)); /*+1 for '\0' */
+  
+  if (simulatingFilePath == NULL || simulatingFileName == NULL){
     printf("Faile to allocate string in getPath. Exiting...\n");
     exit(-1);
   }
-  strncpy(path,filename, path_length - file_length);
-  path[path_length - file_length] = '/';
-  path[path_length - file_length+1] = '\0';
-  return path;
+  strncpy(simulatingFilePath, filename, path_length - file_length);
+  simulatingFilePath[path_length - file_length] = '/';
+  simulatingFilePath[path_length - file_length+1] = '\0';
+
+  strncpy(simulatingFileName, name+1, file_length-1);
+  simulatingFileName[file_length] = '\0';
 }
 
 struct CPU cpu;
@@ -143,7 +147,7 @@ int main(int argc, char *argv[])
     memset(ram, 0, sizeof(ram));
     memset(flash, 0, sizeof(flash));
     fillState(file);
-    simulatingFilePath = getPath(file);
+    getPath(file);
     
     // Initialize CPU state
     cpu_reset();
