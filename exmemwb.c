@@ -382,7 +382,8 @@ void exwbmem(const u16 pInsn)
     // Increment global opcode stats.
     primary_opcode_stats[pInsn >> 10]++;
     unsigned int insnTicks = executeJumpTable[pInsn >> 10]();
-    INCREMENT_CYCLES(insnTicks);
+    if(tracingActive)
+        INCREMENT_CYCLES(insnTicks);
     
     // Update the systick unit and look for resets
     if(systick.control & 0x1)
