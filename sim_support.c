@@ -109,7 +109,11 @@ void printStatsCSV(void)
     char *str2 = ".csv\0";
 
     sprintf(filename,"%s%d%s", str1, statsReportCounter++, str2);
-    sprintf(overallStatsCsv, "%s%s%s", simulatingFilePath, "counters", ".csv");
+#if PRINT_STATS_SINGLE_FILE
+      sprintf(overallStatsCsv, "%s%s%s", simulatingFilePath, "counters", ".csv");
+#else
+      sprintf(overallStatsCsv, "%s%s", "counters", ".csv");
+#endif
 
     FILE *f = fopen(filename, "w");
     FILE *f1 = fopen(overallStatsCsv, "a");
@@ -117,12 +121,13 @@ void printStatsCSV(void)
       fprintf(stderr, "File for writing stats can't be opened\n");
       exit(-1);
     }
+
  #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
-    if (statsReportCounter == 1)
-      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
-    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", ram_data_reads, ram_insn_reads, ram_writes, 
+    // if (statsReportCounter == 1)
+    //   fprintf(f1, "file_name, cycle_count, instr_count RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
+    fprintf(f1, "%s, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", simulatingFileName, cycleCount, insnCount, ram_data_reads, ram_insn_reads, ram_writes, 
       flash_data_reads, flash_insn_reads, flash_writes, taken_branches);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
@@ -594,7 +599,7 @@ char simStoreData(u32 address, u32 value)
           // Start the logging of events.
           tracingActive = 1;
           // printStats();
-          printStatsCSV();
+          // printStatsCSV();
           return 0;
         }
         else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
@@ -606,7 +611,6 @@ char simStoreData(u32 address, u32 value)
           {
             // Stop the logging of events.
             tracingActive = 0;
-            // printStats();
             printStatsCSV();
             return 0;
           }
