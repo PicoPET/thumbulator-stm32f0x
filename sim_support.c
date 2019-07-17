@@ -110,9 +110,9 @@ void printStatsCSV(void)
 
     sprintf(filename,"%s%d%s", str1, statsReportCounter++, str2);
 #if PRINT_STATS_SINGLE_FILE
-      sprintf(overallStatsCsv, "%s%s%s", simulatingFilePath, "counters", ".csv");
-#else
       sprintf(overallStatsCsv, "%s%s", "counters", ".csv");
+#else
+      sprintf(overallStatsCsv, "%s%s%s", simulatingFilePath, "counters", ".csv");
 #endif
 
     FILE *f = fopen(filename, "w");
@@ -126,7 +126,7 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     // if (statsReportCounter == 1)
-    //   fprintf(f1, "file_name, cycle_count, instr_count RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
+    //   fprintf(f1, "file_name, cycle_count, instr_count, RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
     fprintf(f1, "%s, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", simulatingFileName, cycleCount, insnCount, ram_data_reads, ram_insn_reads, ram_writes, 
       flash_data_reads, flash_insn_reads, flash_writes, taken_branches);
 
