@@ -107,7 +107,7 @@ void printStatsCSV(void)
     static int statsReportCounter = 0;
     char *str1 = "simulationStats";
     char *str2 = ".csv\0";
-
+printf("MALAKIA\n");
     sprintf(filename,"%s%d%s", str1, statsReportCounter++, str2);
 #if PRINT_STATS_SINGLE_FILE
       sprintf(overallStatsCsv, "%s%s", "counters", ".csv");
@@ -126,9 +126,9 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     // if (statsReportCounter == 1)
-    //   fprintf(f1, "file_name, cycle_count, instr_count, RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
-    fprintf(f1, "%s, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", simulatingFileName, cycleCount, insnCount, ram_data_reads, ram_insn_reads, ram_writes, 
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches);
+    //   fprintf(f1, "file_name,cycle_count,instr_count,RAM_data_reads,RAM_insn_reads,RAM_writes,Flash_data_reads,Flash_insn_reads,Flash_writes,Taken_branches,muls\n");
+    fprintf(f1, "%s,%12lld,%12lld,%12lld,%12lld,%12lld,%12lld,%12lld,%12lld,%12lld,%12lld\n", simulatingFileName, cycleCount, insnCount, ram_data_reads, ram_insn_reads, ram_writes, 
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, opcode_stats[16][13]);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)
