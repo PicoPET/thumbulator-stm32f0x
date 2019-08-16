@@ -35,6 +35,8 @@ u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
+bool doTrace = 0;
+bool useCSVoutput = 0;
 bool tracingActive = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
@@ -413,15 +415,15 @@ char simLoadInsn(u32 address, u16 *value)
       flash_insn_reads++;
     fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
   }
-    
+
   // Data 32-bits, but instruction 16-bits
   *value = ((address & 0x2) != 0) ? (u16)(fromMem >> 16) : (u16)fromMem;
-    
+
   return 0;
 }
 
-// Normal interface for a program to load from memory
-// Increments load counter
+// Normal interface for a program to load data from memory
+// Increments data load counter
 char simLoadData(u32 address, u32 *value)
 {
   #if MEM_COUNT_INST
@@ -481,6 +483,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       sim_exit(1);
     }
 
+    // Implicitly (and confirmed by flow analysis) at this point we have 'address < (RAM_START + RAM_SIZE)'.
     // Add addresses to the read list if they weren't written to first
     if(REPORT_IDEM_BREAKS && !falseRead)
     {
@@ -501,6 +504,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
   }
   else
   {
+    // Here we assume FLASH_START < RAM_START...
     if(address >= (FLASH_START + FLASH_SIZE))
     {
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
@@ -593,8 +597,10 @@ char simStoreData(u32 address, u32 value)
           fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
           // Start the logging of events.
           tracingActive = 1;
-          // printStats();
-          printStatsCSV();
+          if (useCSVoutput)
+	          printStatsCSV();
+          else
+	          do {} while (0); // printStats();
           return 0;
         }
         else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
@@ -606,8 +612,10 @@ char simStoreData(u32 address, u32 value)
           {
             // Stop the logging of events.
             tracingActive = 0;
-            // printStats();
-            printStatsCSV();
+            if (useCSVoutput)
+	            printStatsCSV();
+	          else
+	            printStats();
             return 0;
           }
         }

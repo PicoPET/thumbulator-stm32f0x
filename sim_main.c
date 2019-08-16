@@ -37,9 +37,9 @@ char* getPath(char *filename) {
   ssc = strrchr(filename, '/');
   file_length = strlen(ssc);
   path_length = strlen(filename);
-  path = (char*) malloc((path_length - file_length + 2)*sizeof(char)); /*+1 for '\0' character */
+  path = (char*) malloc((path_length - file_length + 2)*sizeof(char)); /* +1 for '\0' character */
   if (path == NULL){
-    printf("Faile to allocate string in getPath. Exiting...\n");
+    printf("Failed to allocate string in getPath. Exiting...\n");
     exit(-1);
   }
   strncpy(path,filename, path_length - file_length);
@@ -77,7 +77,6 @@ void printStateDiff(const struct CPU * pState1, const struct CPU * pState2)
         diff_printf("C:\t%d\n", cpu_get_flag_c());
     if((pState1->apsr & FLAG_V_MASK) != (pState2->apsr & FLAG_V_MASK))
         diff_printf("V:\t%d\n", cpu_get_flag_v());
-
 }
 
 void printState()
@@ -117,21 +116,44 @@ int main(int argc, char *argv[])
 {
     char *file = 0;
     int debug = 0;
-    
+    int i;
+
     if(argc < 2)
     {
-        fprintf(stderr, "Usage: %s [-g] memory_file\n", argv[0]);
+        fprintf(stderr, "Usage: %s [-g] [-pw|-pb] memory_file\n", argv[0]);
         return 1;
     }
 
-    if(argc == 2)
-      file = argv[1];
-    else if(0 == strncmp("-g", argv[1], strlen("-g")))
+    // Name of the binary file must come last on command line
+    file = argv[argc - 1];
+    for (i = 1; i < argc - 1; i++)
     {
-      file = argv[2];
-      debug = 1;
+      if(0 == strncmp("-g", argv[i], strlen("-g")))
+      {
+        // Enable debugging.
+        debug = 1;
+      }
+      else if (0 == strcmp("-s",argv[i]))
+      {
+        // SUMMARY mode: Disable trace, enable differential event reporting.
+        doTrace = 0;
+      }
+      else if (0 == strcmp("-t", argv[i]))
+      {
+	      // Enable trace, disable differential event reporting.
+	      doTrace = 1;
+      }
+      else if (0 == strcmp("-c", argv[i]))
+      {
+	      // Enable CSV output.
+	      useCSVoutput = 1;
+      }
+      else
+      {
+        fprintf(stderr, "Unknown option '%s'\n",argv[i]);
+        return 1;
+      }
     }
-
 
     fprintf(stderr, "Simulating file %s\n", file);
     fprintf(stderr, "Flash start:\t0x%8.8X\n", FLASH_START);
@@ -143,7 +165,8 @@ int main(int argc, char *argv[])
     memset(ram, 0, sizeof(ram));
     memset(flash, 0, sizeof(flash));
     fillState(file);
-    simulatingFilePath = getPath(file);
+    if (useCSVoutput)
+      simulatingFilePath = getPath(file);
     
     // Initialize CPU state
     cpu_reset();
@@ -219,11 +242,13 @@ int main(int argc, char *argv[])
         else
         {
           if(tracingActive)
+          {
             taken_branches++;
-          // Branching to a target not aligned on a word boundary incurs a penalty on 32-bit-only
-          // memories as the next insn will require a full insn memory access.
-          if (cpu_get_pc() & 0x2)
-            nonword_branch_destinations++;
+            // Branching to a target not aligned on a word boundary incurs a penalty on 32-bit-only
+            // memories as the next insn will require a full insn memory access.
+            if (cpu_get_pc() & 0x2)
+              nonword_branch_destinations++;
+          }
           cpu_set_pc(cpu_get_pc() + 0x4);
         }
 

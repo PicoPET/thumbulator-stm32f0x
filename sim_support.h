@@ -28,6 +28,7 @@ typedef char bool;
 // Core CPU compenents
 extern u32 ram[RAM_SIZE >> 2];
 extern u32 flash[FLASH_SIZE >> 2];
+// Performance counters
 extern u64 ram_data_reads;
 extern u64 ram_insn_reads;
 extern u64 ram_writes;
@@ -36,6 +37,12 @@ extern u64 flash_insn_reads;
 extern u64 flash_writes;
 extern u64 taken_branches;
 extern u64 nonword_branch_destinations;
+// Enable differential results in start-stop mode.
+extern bool doTrace;
+extern bool tracingActive;
+extern bool useCSVoutput;
+extern char *simulatingFilePath;
+
 extern bool takenBranch;    // Informs fetch that previous instruction caused a control flow change
 extern void sim_exit(int);  // All sim ends lead through here
 void cpu_reset();           // Resets the CPU according to the specification
@@ -43,8 +50,6 @@ char simLoadInsn(u32 address, u16 *value);  // All memory accesses one simulatio
 char simLoadData(u32 address, u32 *value);
 char simLoadData_internal(u32 address, u32 *value, u32 falseRead); // falseRead says whether this is a read due to anything other than the program
 char simStoreData(u32 address, u32 value);
-extern bool tracingActive;
-extern char* simulatingFilePath;
 
 // Controls whether the program output prints to the simulator's console or is not printed at all
 #define DISABLE_PROGRAM_PRINTING 1
@@ -64,7 +69,7 @@ extern char* simulatingFilePath;
 #define THUMB_CHECK 1                                   // Verify that the PC stays in thumb mode
 
 #define diff_printf(format, ...) do{ fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } while(0)
-#define diss_printf(format, ...) do{ if (PRINT_INST && tracingActive) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
+#define diss_printf(format, ...) do{ if (PRINT_INST && tracingActive && doTrace) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
 
 // Hooks to run code every time a GPR is accessed
 #define HOOK_GPR_ACCESSES 1         // Currently set to see if stack crosses heap
