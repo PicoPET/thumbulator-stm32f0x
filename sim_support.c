@@ -7,6 +7,7 @@
 #include "rsp-server.h"
 
 u64 cycleCount = 0;
+u64 last_insnCount = 0;
 u64 insnCount = 0;
 u64 wastedCycles = 0;
 u32 cyclesSinceReset = 0;
@@ -35,9 +36,32 @@ u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
+u64 flash_insn_prefetch_hits = 0;
+// Last snapshot of event counters
+u64 last_ram_data_reads = 0;
+u64 last_ram_insn_reads = 0;
+u64 last_ram_writes = 0;
+u64 last_flash_data_reads = 0;
+u64 last_flash_insn_reads = 0;
+u64 last_flash_writes = 0;
+u64 last_taken_branches = 0;
+u64 last_nonword_branch_destinations = 0;
+u64 last_flash_insn_prefetch_hits = 0;
+// Prefetch buffering: single word version for 32-bit memories
+u32 last_fetched_address = 0xffffffff;
+u32 last_fetched_word = 0xffffffff;
+u32 prefetch_mode = PREFETCH_MODE_NONE;
+u32 prefetch_addresses[3] = { 0xffffffff, 0xffffffff, 0xffffffff };
+u32 prefetch_words[3] = { 0xffffffff, 0xffffffff, 0xffffffff };
+ // LRU implementation: use tail of MRU queue (prefetch_mru_q[2]).
+u32 prefetch_mru_q[3] = { 0, 1, 2};
+// Use tracing mode.
 bool doTrace = 0;
 bool useCSVoutput = 0;
+// Trace or differential counters: 1 if in progress.
 bool tracingActive = 0;
+// Log all events even if not tracing the execution in any way: 1 if enabled.
+bool logAllEvents = 1;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -67,6 +91,33 @@ void printOpcodeCounts(u64 subcode_stats[], u32 count)
     fprintf(stderr, "%ld]\n", subcode_stats[i]);
 }
 
+void printOpcodeCountDeltas(u64 subcode_stats[], u64 last_subcode_stats[], u32 count)
+{
+    u32 i;
+    fprintf(stderr, ", [");
+    for (i = 0; i < count - 1; i++)
+        fprintf(stderr, "%ld, ", subcode_stats[i] - last_subcode_stats[i]);
+
+    fprintf(stderr, "%ld]\n", subcode_stats[i], last_subcode_stats[i]);
+}
+
+void saveStats(void)
+{
+    u32 i;
+    last_insnCount = insnCount;
+    last_ram_data_reads = ram_data_reads;
+    last_ram_insn_reads = ram_insn_reads;
+    last_ram_writes = ram_writes;
+    last_flash_data_reads = flash_data_reads;
+    last_flash_insn_reads =flash_insn_reads;
+    last_flash_writes = flash_writes;
+    last_taken_branches = taken_branches;
+    last_nonword_branch_destinations = nonword_branch_destinations;
+    last_flash_insn_prefetch_hits = flash_insn_prefetch_hits;
+    memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
+    memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
+}
+
 // Print execution statistics.
 void printStats(void)
 {
@@ -74,19 +125,45 @@ void printStats(void)
 #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
 #endif
-    fprintf(stderr, "RAM data reads:    %12lld\n", ram_data_reads);
-    fprintf(stderr, "RAM insn reads:    %12lld\n", ram_insn_reads);
-    fprintf(stderr, "RAM writes:        %12lld\n", ram_writes);
-    fprintf(stderr, "Flash data reads:  %12lld\n", flash_data_reads);
-    fprintf(stderr, "Flash insn reads:  %12lld\n", flash_insn_reads);
-    fprintf(stderr, "Flash writes:      %12lld\n", flash_writes);
-    fprintf(stderr, "Taken branches:    %12lld\n", taken_branches);
-    fprintf(stderr, "Non-word branches: %12lld\n", nonword_branch_destinations);
+    fprintf(stderr, "Executed insns:     %12lld\n", insnCount);
+    fprintf(stderr, "RAM data reads:     %12lld\n", ram_data_reads);
+    fprintf(stderr, "RAM insn reads:     %12lld\n", ram_insn_reads);
+    fprintf(stderr, "RAM writes:         %12lld\n", ram_writes);
+    fprintf(stderr, "Flash data reads:   %12lld\n", flash_data_reads);
+    fprintf(stderr, "Flash insn reads:   %12lld\n", flash_insn_reads);
+    fprintf(stderr, "Flash writes:       %12lld\n", flash_writes);
+    fprintf(stderr, "Taken branches:     %12lld\n", taken_branches);
+    fprintf(stderr, "Non-word branches:  %12lld\n", nonword_branch_destinations);
+    fprintf(stderr, "Insn prefetch hits: %12lld\n", flash_insn_prefetch_hits);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
         fprintf(stderr, "%2d: %9ld", i, primary_opcode_stats[i]);
         printOpcodeCounts(opcode_stats[i], 16);
+    }
+}
+
+void printStatsDelta(void)
+{
+    u32 i;
+ #if MEM_COUNT_INST
+    fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
+#endif
+    fprintf(stderr, "Executed insns:     %12lld\n", insnCount - last_insnCount);
+    fprintf(stderr, "RAM data reads:     %12lld\n", ram_data_reads - last_ram_data_reads);
+    fprintf(stderr, "RAM insn reads:     %12lld\n", ram_insn_reads - last_ram_insn_reads);
+    fprintf(stderr, "RAM writes:         %12lld\n", ram_writes - last_ram_writes);
+    fprintf(stderr, "Flash data reads:   %12lld\n", flash_data_reads - last_flash_data_reads);
+    fprintf(stderr, "Flash insn reads:   %12lld\n", flash_insn_reads - last_flash_insn_reads);
+    fprintf(stderr, "Flash writes:       %12lld\n", flash_writes - last_flash_writes);
+    fprintf(stderr, "Taken branches:     %12lld\n", taken_branches - last_taken_branches);
+    fprintf(stderr, "Non-word branches:  %12lld\n", nonword_branch_destinations - last_nonword_branch_destinations);
+    fprintf(stderr, "Insn prefetch hits: %12lld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
+    fprintf(stderr, "Opcode statistics:\n");
+    for (i = 0; i < 64; i++)
+    {
+        fprintf(stderr, "%2d: %9ld", i, primary_opcode_stats[i] - last_primary_opcode_stats[i]);
+        printOpcodeCountDeltas(opcode_stats[i], last_opcode_stats[i], 16);
     }
 }
 
@@ -381,6 +458,31 @@ void reportAndReset(char pNumRegsPushed)
   clearList(&addressWriteBeforeReadList);
 }
 
+// MRU/LRU queue management: MRU always at index 0.
+void prefetch_set_mru(u32 index)
+{
+  int i;
+
+  if (prefetch_mru_q[0] == index)
+    // If index is already MRU, there's nothing to do.
+    return;
+
+  if (prefetch_mru_q[1] == index)
+  {
+    // Index in position 1: swap values at 0 and 1.
+    prefetch_mru_q[1] = prefetch_mru_q[0];
+    prefetch_mru_q[0] = index;
+  }
+
+  if (prefetch_mru_q[2] == index)
+  {
+    // Index in position 2: rotate the buffer to the right.
+    prefetch_mru_q[2] = prefetch_mru_q[1];
+    prefetch_mru_q[1] = prefetch_mru_q[0];
+    prefetch_mru_q[0] = index;
+  }
+}
+
 // Memory access functions assume that RAM has a higher address than Flash
 char simLoadInsn(u32 address, u16 *value)
 {
@@ -400,7 +502,8 @@ char simLoadInsn(u32 address, u16 *value)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if (tracingActive)
+    // TODO: Add support of RAM word buffer.
+    if (tracingActive || logAllEvents)
       ram_insn_reads++;
     fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
   }
@@ -411,9 +514,66 @@ char simLoadInsn(u32 address, u16 *value)
       fprintf(stderr, "Error: ILF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if(tracingActive)
-      flash_insn_reads++;
-    fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
+
+    if (prefetch_mode == PREFETCH_MODE_WORD)
+    {
+      if ((address & ~0x3) == last_fetched_address)
+      {
+        // Request address corresponds to the last fetched word.
+        fromMem = last_fetched_word;
+	if (tracingActive || logAllEvents)
+          flash_insn_prefetch_hits++;
+      }
+      else
+      {
+        // Request address does not match the last fetched word.
+        if (tracingActive || logAllEvents)
+          flash_insn_reads++;
+        fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
+        last_fetched_address = address & ~0x3;
+        last_fetched_word = fromMem;
+      }
+    }
+    else if (prefetch_mode == PREFETCH_MODE_BUFFER)
+    {
+      int i;
+      bool is_a_hit = 0;
+      // Compare address against the content of tags.
+      for (i = 0 ; i < 3; i++)
+      {
+        if ((address & ~0x3) == prefetch_addresses[i])
+        {
+          // Address was found in tags: use the corresponding PF buffer word
+          // update the MRU queue and the hit counter.
+          fromMem = prefetch_words[i];
+          prefetch_set_mru(i);
+          is_a_hit = 1;
+          if (tracingActive || logAllEvents)
+            flash_insn_prefetch_hits++;
+          break;
+        }
+      }
+
+      // If word is not in PF, we need to fetch it.
+      if (!is_a_hit)
+      {
+        // Evict the LRU entry from the PF buffer.
+        u32 victim = prefetch_mru_q[2];
+        prefetch_set_mru(victim);
+        fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
+        prefetch_words[victim] = fromMem;
+        prefetch_addresses[victim] = address & ~0x3;
+        if (tracingActive || logAllEvents)
+          flash_insn_reads++;
+      }
+    }
+    else  // Neither PREFETCH_MODE_WORD nor PREFETCH_MODE_BUFFER
+    {
+      // Original behavior: Plain load from flash on every instruction.
+      fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
+      if (tracingActive || logAllEvents)
+          flash_insn_reads++;
+    }
   }
 
   // Data 32-bits, but instruction 16-bits
@@ -483,14 +643,14 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       sim_exit(1);
     }
 
-    // Implicitly (and confirmed by flow analysis) at this point we have 'address < (RAM_START + RAM_SIZE)'.
+    // Implicitly (but confirmed by flow analysis) at this point we have 'address < (RAM_START + RAM_SIZE)'.
     // Add addresses to the read list if they weren't written to first
     if(REPORT_IDEM_BREAKS && !falseRead)
     {
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if (tracingActive)
+    if (tracingActive || logAllEvents)
       ram_data_reads++;
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
@@ -510,7 +670,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if (tracingActive)
+    if (tracingActive || logAllEvents)
       flash_data_reads++;
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
@@ -598,9 +758,9 @@ char simStoreData(u32 address, u32 value)
           // Start the logging of events.
           tracingActive = 1;
           if (useCSVoutput)
-	          printStatsCSV();
+            printStatsCSV();
           else
-	          do {} while (0); // printStats();
+            saveStats();
           return 0;
         }
         else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
@@ -613,11 +773,14 @@ char simStoreData(u32 address, u32 value)
             // Stop the logging of events.
             tracingActive = 0;
             if (useCSVoutput)
-	            printStatsCSV();
-	          else
-	            printStats();
-            return 0;
+              printStatsCSV();
+            else
+	      // Print differential statistics.
+              printStatsDelta();
           }
+	  else
+	    printStats();
+          return 0;
         }
 
         fprintf(stderr, "WARNING: Writing to MMIO space: 0x%08x@0x%8.8X, pc=%x, operation IGNORED\n", value, address, cpu_get_pc());
@@ -665,7 +828,7 @@ char simStoreData(u32 address, u32 value)
     #endif
 
     ram[(address & RAM_ADDRESS_MASK) >> 2] = value;
-    if (tracingActive)
+    if (tracingActive || logAllEvents)
       ram_writes++;
 
     #if MEM_COUNT_INST
@@ -691,7 +854,7 @@ char simStoreData(u32 address, u32 value)
     #endif
       
     flash[(address & FLASH_ADDRESS_MASK) >> 2] = value;
-    if (tracingActive)
+    if (tracingActive || logAllEvents)
       flash_writes++;
       
     #if MEM_COUNT_INST

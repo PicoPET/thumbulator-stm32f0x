@@ -35,6 +35,9 @@ extern struct SYSTICK systick;
 // (not all variants are used for all opcodes)
 extern u64 opcode_stats[64][16];
 extern u64 primary_opcode_stats[64];
+// Last snapshot of the above
+extern u64 last_opcode_stats[64][16];
+extern u64 last_primary_opcode_stats[64];
 
 // Define bit fields of APSR
 #define FLAG_N_INDEX 31

@@ -133,20 +133,31 @@ int main(int argc, char *argv[])
         // Enable debugging.
         debug = 1;
       }
+      else if (0 == strcmp("-pw", argv[i]))
+      {
+        // Prefetch mode: WORD (single 32-bit word).
+        prefetch_mode = PREFETCH_MODE_WORD;
+      }
+      else if (0 == strcmp("-pb", argv[i]))
+      {
+        // Prefetch mode: BUFFER (three 32-bit words)
+        prefetch_mode = PREFETCH_MODE_BUFFER;
+      }
       else if (0 == strcmp("-s",argv[i]))
       {
         // SUMMARY mode: Disable trace, enable differential event reporting.
         doTrace = 0;
+	logAllEvents = 0;
       }
       else if (0 == strcmp("-t", argv[i]))
       {
-	      // Enable trace, disable differential event reporting.
-	      doTrace = 1;
+        // Enable trace, disable differential event reporting.
+        doTrace = 1;
       }
       else if (0 == strcmp("-c", argv[i]))
       {
-	      // Enable CSV output.
-	      useCSVoutput = 1;
+        // Enable CSV output.
+        useCSVoutput = 1;
       }
       else
       {
@@ -241,7 +252,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-          if(tracingActive)
+          if(tracingActive || logAllEvents)
           {
             taken_branches++;
             // Branching to a target not aligned on a word boundary incurs a penalty on 32-bit-only

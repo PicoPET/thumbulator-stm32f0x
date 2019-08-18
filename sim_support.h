@@ -37,9 +37,15 @@ extern u64 flash_insn_reads;
 extern u64 flash_writes;
 extern u64 taken_branches;
 extern u64 nonword_branch_destinations;
+// Prefetch buffering: none, 1-word direct-associative, or 3-word direct-associative buffer
+#define PREFETCH_MODE_NONE 0
+#define PREFETCH_MODE_WORD 1
+#define PREFETCH_MODE_BUFFER 2
+extern u32 prefetch_mode;
 // Enable differential results in start-stop mode.
 extern bool doTrace;
 extern bool tracingActive;
+extern bool logAllEvents;
 extern bool useCSVoutput;
 extern char *simulatingFilePath;
 
@@ -69,7 +75,7 @@ char simStoreData(u32 address, u32 value);
 #define THUMB_CHECK 1                                   // Verify that the PC stays in thumb mode
 
 #define diff_printf(format, ...) do{ fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } while(0)
-#define diss_printf(format, ...) do{ if (PRINT_INST && tracingActive && doTrace) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
+#define diss_printf(format, ...) do{ if (PRINT_INST && (tracingActive || logAllEvents) && doTrace) { fprintf(stderr, "%08X:\t", cpu_get_pc() - 0x5); fprintf(stderr, format, __VA_ARGS__); } } while(0)
 
 // Hooks to run code every time a GPR is accessed
 #define HOOK_GPR_ACCESSES 1         // Currently set to see if stack crosses heap

@@ -9,6 +9,8 @@ u16 insn;
 // (not all variants are used for all opcodes)
 u64 opcode_stats[64][16];
 u64 primary_opcode_stats[64];
+u64 last_opcode_stats[64][16];
+u64 last_primary_opcode_stats[64];
 
 #if HOOK_GPR_ACCESSES
     u32 cpu_get_gpr(u32 gpr)
