@@ -230,7 +230,7 @@ void (* decodeJumpTable[64])(const u16 pInsn) = { \
     decode_error\
 };
 
-// Decoding is a matter of indexing the decode jump tabel
+// Decoding is a matter of indexing the decode jump table
 // using the first 6 instruction opcode bits and then
 // executing the function pointed to
 // The decode functions update the global decode structure
