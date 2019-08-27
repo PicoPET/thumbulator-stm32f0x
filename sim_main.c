@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     }
 
     // Execute the program
-    // Simulation will terminate when it executes insn == 0xBFAA
+    // Simulation will terminate when it executes insn == 0xBFAA or jump-to-self.
     bool addToWasted = 0;
     while(1)
     {
@@ -201,6 +201,7 @@ int main(int argc, char *argv[])
         
         u16 insn;
         takenBranch = 0;
+        branch_fetch_stall = 0;
         
         if(PRINT_ALL_STATE)
         {
@@ -256,9 +257,26 @@ int main(int argc, char *argv[])
           {
             taken_branches++;
             // Branching to a target not aligned on a word boundary incurs a penalty on 32-bit-only
-            // memories as the next insn will require a full insn memory access.
+            // memories as the insn that follows the branch target will require a full insn memory access.
             if (cpu_get_pc() & 0x2)
-              nonword_branch_destinations++;
+              {
+                nonword_branch_destinations++;
+                branch_fetch_stall = 1;
+              }
+
+            // Branching from an insn that ends on a word boundary may incur a penalty on 32-bit only
+            // memories as the insn to follow the branch will already have been fetched and the fetch result
+            // will have to be discarded if the branch was taken.
+            // NOTE 1: cpu_get_pc() has already the value of the target, but lastCPU.gpr[15] points to the insn
+            //         that follows the branch, i.e., the fallthru address.
+            // NOTE 2: PC values are in Thumb mode (bit 0 set).
+            if (lastCPU.gpr[15] & 0x2 == 0)
+              canceled_fetches++;
+
+            // Count actual stalls caused by cancellation of either fallthru prefetch on cond branch
+            // or a non word-aligned branch destination.
+            if (branch_fetch_stall)
+              branch_fetch_stalls++;
           }
           cpu_set_pc(cpu_get_pc() + 0x4);
         }

@@ -74,7 +74,7 @@ u32 tst()
 u32 b()
 {
     u32 offset = signExtend32(decoded.imm << 1, 12);
-    
+
     diss_printf("B 0x%08X\n", offset);
 
     // Stop simulation on a branch-to-self, i.e., when offset == 0xfffffffc.
@@ -84,7 +84,7 @@ u32 b()
         // printStats();
         sim_exit(0);
     }
-    
+
     u32 result = offset + cpu_get_pc();
     cpu_set_pc(result);
     takenBranch = 1;
@@ -97,7 +97,7 @@ u32 b_c()
 {
     diss_printf("Bcc 0x%08X\n", decoded.imm);
     u32 taken = 0;
-    
+
     switch(decoded.cond)
     {
 		case 0x0: // b eq, z set
@@ -174,18 +174,28 @@ u32 b_c()
             fprintf(stderr, "Error: Malformed instruction!");
             sim_exit(1);
     }
-    
+
     if(taken == 0)
     {
         return 1;
     }
-    
+
     u32 offset = signExtend32(decoded.imm << 1, 9);
     u32 pc = cpu_get_pc();
     u32 result = offset + pc;
+
+    // Bcc is 16 bits long at cpu_get_pc() - 4.  If cpu_get_pc() was NOT word aligned,
+    // a 32-bit fetch may have been issued and would need to be canceled.
+    if ((cpu_get_pc() & 0x2 == 0x2)
+        && (tracingActive || logAllEvents))
+        {
+            canceled_fetches++;
+            branch_fetch_stall = 1;
+        }
+
     cpu_set_pc(result);
     takenBranch = 1;
-    
+
     return TIMING_BRANCH;
 }
 
@@ -241,7 +251,7 @@ u32 bl()
     u32 result = signExtend32(decoded.imm << 1, 25);
     
     diss_printf("bl 0x%08X\n", result);
-    
+
     result += cpu_get_pc();
     
     cpu_set_lr(cpu_get_pc());

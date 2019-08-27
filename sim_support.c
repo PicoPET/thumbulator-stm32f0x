@@ -37,6 +37,9 @@ u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
 u64 flash_insn_prefetch_hits = 0;
+u64 canceled_fetches = 0;
+bool branch_fetch_stall = 0;
+u64 branch_fetch_stalls = 0;
 // Last snapshot of event counters
 u64 last_ram_data_reads = 0;
 u64 last_ram_insn_reads = 0;
@@ -47,6 +50,8 @@ u64 last_flash_writes = 0;
 u64 last_taken_branches = 0;
 u64 last_nonword_branch_destinations = 0;
 u64 last_flash_insn_prefetch_hits = 0;
+u64 last_canceled_fetches = 0;
+u64 last_branch_fetch_stalls = 0;
 // Prefetch buffering: single word version for 32-bit memories
 u32 last_fetched_address = 0xffffffff;
 u32 last_fetched_word = 0xffffffff;
@@ -114,6 +119,8 @@ void saveStats(void)
     last_taken_branches = taken_branches;
     last_nonword_branch_destinations = nonword_branch_destinations;
     last_flash_insn_prefetch_hits = flash_insn_prefetch_hits;
+    last_canceled_fetches = canceled_fetches;
+    last_branch_fetch_stalls = branch_fetch_stalls;
     memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
     memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
 }
@@ -135,6 +142,8 @@ void printStats(void)
     fprintf(stderr, "Taken branches:     %12lld\n", taken_branches);
     fprintf(stderr, "Non-word branches:  %12lld\n", nonword_branch_destinations);
     fprintf(stderr, "Insn prefetch hits: %12lld\n", flash_insn_prefetch_hits);
+    fprintf(stderr, "Canceled fetches:   %12lld\n", canceled_fetches);
+    fprintf(stderr, "Branch fetch stalls:%12lld\n", branch_fetch_stalls);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
@@ -159,6 +168,8 @@ void printStatsDelta(void)
     fprintf(stderr, "Taken branches:     %12lld\n", taken_branches - last_taken_branches);
     fprintf(stderr, "Non-word branches:  %12lld\n", nonword_branch_destinations - last_nonword_branch_destinations);
     fprintf(stderr, "Insn prefetch hits: %12lld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
+    fprintf(stderr, "Canceled fetches:   %12lld\n", canceled_fetches - last_canceled_fetches);
+    fprintf(stderr, "Branch fetch stalls:%12lld\n", branch_fetch_stalls - last_branch_fetch_stalls);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
@@ -200,9 +211,9 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     if (statsReportCounter == 1)
-      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches\n");
-    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld \n", ram_data_reads, ram_insn_reads, ram_writes, 
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches);
+      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Canceled_fetches, Branch_fetch_stalls\n");
+    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n", ram_data_reads, ram_insn_reads, ram_writes,
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, canceled_fetches, branch_fetch_stalls);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)
@@ -521,7 +532,7 @@ char simLoadInsn(u32 address, u16 *value)
       {
         // Request address corresponds to the last fetched word.
         fromMem = last_fetched_word;
-	if (tracingActive || logAllEvents)
+        if (tracingActive || logAllEvents)
           flash_insn_prefetch_hits++;
       }
       else

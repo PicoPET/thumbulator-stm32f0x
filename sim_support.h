@@ -37,6 +37,9 @@ extern u64 flash_insn_reads;
 extern u64 flash_writes;
 extern u64 taken_branches;
 extern u64 nonword_branch_destinations;
+extern u64 canceled_fetches;
+extern bool branch_fetch_stall; // Boolean to represent branch-induced stall/cancellation condition
+extern u64 branch_fetch_stalls; // Count of branch-induced fetch delays (caused by stalls and/or cancellations)
 // Prefetch buffering: none, 1-word direct-associative, or 3-word direct-associative buffer
 #define PREFETCH_MODE_NONE 0
 #define PREFETCH_MODE_WORD 1
