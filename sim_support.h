@@ -39,6 +39,9 @@ extern u64 taken_branches;
 extern u64 nonword_branch_destinations;
 extern u64 canceled_fetches;
 extern bool branch_fetch_stall; // Boolean to represent branch-induced stall/cancellation condition
+extern bool ram_access; // Boolean to mark a RAM request in the current decode cycle
+extern bool flash_access; // Boolean to mark a Flash request in the current decode cycle
+extern u64 arbitration_conflicts; // Count of potential RAM/Flash arbitration conflicts
 extern u64 branch_fetch_stalls; // Count of branch-induced fetch delays (caused by stalls and/or cancellations)
 // Prefetch buffering: none, 1-word direct-associative, or 3-word direct-associative buffer
 #define PREFETCH_MODE_NONE 0

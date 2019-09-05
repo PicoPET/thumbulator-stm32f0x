@@ -202,6 +202,8 @@ int main(int argc, char *argv[])
         u16 insn;
         takenBranch = 0;
         branch_fetch_stall = 0;
+        ram_access = 0;
+        flash_access = 0;
         
         if(PRINT_ALL_STATE)
         {
@@ -209,7 +211,6 @@ int main(int argc, char *argv[])
             printState();
         }
 
- 
         // Backup CPU state
         //if(PRINT_STATE_DIFF)
             memcpy(&lastCPU, &cpu, sizeof(struct CPU));
@@ -228,6 +229,10 @@ int main(int argc, char *argv[])
         decode(insn);
         exwbmem(insn);
 
+        // Track RAM/Flash arbitration conflicts.
+        if (ram_access && flash_access)
+          arbitration_conflicts++;
+
         // Print any differences caused by the last instruction
         if(PRINT_STATE_DIFF)
             printStateDiff(&lastCPU, &cpu);
@@ -238,7 +243,7 @@ int main(int argc, char *argv[])
           memcpy(&cpu, &lastCPU, sizeof(struct CPU));
           check_except();
         }
-       
+
         // Hacky way to advance PC if no jumps
         if(!takenBranch)
         {
