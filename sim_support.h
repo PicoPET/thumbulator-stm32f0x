@@ -43,6 +43,24 @@ extern bool ram_access; // Boolean to mark a RAM request in the current decode c
 extern bool flash_access; // Boolean to mark a Flash request in the current decode cycle
 extern u64 arbitration_conflicts; // Count of potential RAM/Flash arbitration conflicts
 extern u64 branch_fetch_stalls; // Count of branch-induced fetch delays (caused by stalls and/or cancellations)
+extern bool data_access_in_cur_cycle, data_access_in_next_cycle, data_access_in_two_cycles, data_access_in_three_cycles;
+extern bool load_in_cur_insn, load_in_prev_insn, store_in_cur_insn, store_in_prev_insn;
+extern i32 reg_loaded_in_cur_insn, reg_loaded_in_prev_insn;
+extern u64 load_after_load, load_after_store, store_after_load, store_after_store;
+#define SHIFT_ISSUED_DATA_ACCESSES \
+  { \
+    data_access_in_cur_cycle = data_access_in_next_cycle; \
+    data_access_in_next_cycle = data_access_in_two_cycles; \
+    data_access_in_two_cycles = data_access_in_three_cycles; \
+    data_access_in_three_cycles = 0; \
+  }
+#define FLUSH_ISSUED_DATA_ACCESSES \
+{ \
+  data_access_in_cur_cycle = 0; \
+  data_access_in_next_cycle = 0; \
+  data_access_in_two_cycles = 0; \
+  data_access_in_three_cycles = 0; \
+}
 // Prefetch buffering: none, 1-word direct-associative, or 3-word direct-associative buffer
 #define PREFETCH_MODE_NONE 0
 #define PREFETCH_MODE_WORD 1

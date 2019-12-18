@@ -204,6 +204,8 @@ int main(int argc, char *argv[])
         branch_fetch_stall = 0;
         ram_access = 0;
         flash_access = 0;
+        // Advance the data access pipeline model
+        SHIFT_ISSUED_DATA_ACCESSES;
         
         if(PRINT_ALL_STATE)
         {
@@ -228,10 +230,6 @@ int main(int argc, char *argv[])
         
         decode(insn);
         exwbmem(insn);
-
-        // Track RAM/Flash arbitration conflicts.
-        if (ram_access && flash_access)
-          arbitration_conflicts++;
 
         // Print any differences caused by the last instruction
         if(PRINT_STATE_DIFF)
@@ -281,7 +279,12 @@ int main(int argc, char *argv[])
             // Count actual stalls caused by cancellation of either fallthru prefetch on cond branch
             // or a non word-aligned branch destination.
             if (branch_fetch_stall)
-              branch_fetch_stalls++;
+              {
+                // if (data_access_in_cur_cycle)
+                //  arbitration_conflicts++;
+                SHIFT_ISSUED_DATA_ACCESSES;
+                branch_fetch_stalls++;
+              }
           }
           cpu_set_pc(cpu_get_pc() + 0x4);
         }
@@ -289,6 +292,29 @@ int main(int argc, char *argv[])
         // Increment counters
         if(((cpu_get_pc() - 6)&0xfffffffe) == addrOfCP)
           cyclesSinceCP = 0;
+
+        // Update Load/Store sequence counters.
+        if (load_in_cur_insn)
+        {
+          if (load_in_prev_insn)
+            load_after_load++;
+          else if (store_in_prev_insn)
+            load_after_store++;
+        }
+
+        if (store_in_cur_insn)
+        {
+          if (load_in_prev_insn)
+            store_after_load++;
+          else if (store_in_prev_insn)
+            store_after_store++;
+        }
+
+        // Shift the load/store information by one instruction.
+        load_in_prev_insn = load_in_cur_insn;
+        load_in_cur_insn = 0;
+        store_in_prev_insn = store_in_cur_insn;
+        store_in_cur_insn = 0;
 
         unsigned cp_addr = (cpu.gpr[15] - 4) & (~0x1);
         switch(cp_addr) {
@@ -324,12 +350,12 @@ int main(int argc, char *argv[])
         if(((cpu_get_pc() - 4)&0xfffffffe) == addrOfRestoreCP)
           addToWasted = 1;
 
-      // Wait for commands from GDB
-      if(debug){
-      rsp_check_stall();
+        // Wait for commands from GDB
+        if(debug){
+          rsp_check_stall();
 
-      while(rsp.stalled)
-        handle_rsp();
+        while(rsp.stalled)
+          handle_rsp();
       }
     }
 

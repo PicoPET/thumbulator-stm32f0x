@@ -24,12 +24,17 @@ u32 ldm()
             cpu_set_gpr(i, data);
             address += 4;
             ++numLoaded;
+            reg_loaded_in_cur_insn = i;
         }
     }
     
     if(rNWritten == 0)
+    {
         cpu_set_gpr(decoded.rN, address);
+        reg_loaded_in_cur_insn = decoded.rN;
+    }
     
+    load_in_cur_insn = 1;
     return 1 + numLoaded;
 }
 
@@ -60,7 +65,7 @@ u32 stm()
     }
     
     cpu_set_gpr(decoded.rN, address);
-    
+    store_in_cur_insn = 1;
     return 1 + numStored;
 }
 
@@ -82,6 +87,7 @@ u32 pop()
             u32 data = 0;
             simLoadData(address, &data);
             cpu_set_gpr(i, data);
+            reg_loaded_in_cur_insn = i;
             ++numLoaded;
             if(i == 15)
                 takenBranch = 1;
@@ -90,11 +96,17 @@ u32 pop()
         
         // Skip constant 0s
         if(i == 7)
+        {
             i = 14;
+            reg_loaded_in_cur_insn = 14;
+        }
     }
     
     cpu_set_sp(address);
-    
+
+    // Assume there are no outstanding data accesses after a pop.
+    FLUSH_ISSUED_DATA_ACCESSES;
+
     return 1 + numLoaded + takenBranch ? TIMING_PC_UPDATE : 0;
 }
 
@@ -123,7 +135,7 @@ u32 push()
     }
     
     cpu_set_sp(address);
-    
+
     return 1 + numStored;
 }
 
@@ -143,7 +155,9 @@ u32 ldr_i()
     simLoadData(effectiveAddress, &result);
     
     cpu_set_gpr(decoded.rD, result);
-    
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
+
     return TIMING_MEM;
 }
 
@@ -160,6 +174,8 @@ u32 ldr_sp()
     simLoadData(effectiveAddress, &result);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -177,6 +193,8 @@ u32 ldr_lit()
     simLoadData(effectiveAddress, &result);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -194,6 +212,8 @@ u32 ldr_r()
     simLoadData(effectiveAddress, &result);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -228,6 +248,8 @@ u32 ldrb_i()
     result = zeroExtend32(result & 0xFF);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -262,6 +284,8 @@ u32 ldrb_r()
     result = zeroExtend32(result & 0xFF);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -291,6 +315,8 @@ u32 ldrh_i()
     result = zeroExtend32(result & 0xFFFF);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -320,6 +346,8 @@ u32 ldrh_r()
     result = zeroExtend32(result & 0xFFFF);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -354,6 +382,8 @@ u32 ldrsb_r()
     result = signExtend32(result & 0xFF, 8);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -382,6 +412,8 @@ u32 ldrsh_r()
     result = signExtend32(result & 0xFFFF, 16);
     
     cpu_set_gpr(decoded.rD, result);
+    reg_loaded_in_cur_insn = decoded.rD;
+    load_in_cur_insn = 1;
 
     return TIMING_MEM;
 }
@@ -402,6 +434,7 @@ u32 str_i()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddress, cpu_get_gpr(decoded.rD));
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -420,6 +453,7 @@ u32 str_sp()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddress, cpu_get_gpr(decoded.rD));
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -438,6 +472,7 @@ u32 str_r()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddress, cpu_get_gpr(decoded.rD));
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -476,6 +511,7 @@ u32 strb_i()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddressWordAligned, orig);
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -514,6 +550,7 @@ u32 strb_r()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddressWordAligned, orig);
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -546,6 +583,7 @@ u32 strh_i()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddressWordAligned, orig);
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }
@@ -578,6 +616,7 @@ u32 strh_r()
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddressWordAligned, orig);
     #endif
+    store_in_cur_insn = 1;
     
     return TIMING_MEM;
 }

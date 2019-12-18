@@ -56,6 +56,23 @@ u64 last_flash_insn_prefetch_hits = 0;
 u64 last_canceled_fetches = 0;
 u64 last_branch_fetch_stalls = 0;
 u64 last_arbitration_conflicts = 0;
+// Current/future data bus accesses
+bool data_access_in_cur_cycle = 0;
+bool data_access_in_next_cycle = 0;
+bool data_access_in_two_cycles = 0;
+bool data_access_in_three_cycles = 0;
+// Current/PAST loads, stores
+bool load_in_cur_insn = 0;
+bool load_in_prev_insn = 0;
+bool store_in_cur_insn = 0;
+bool store_in_prev_insn = 0;
+i32 reg_loaded_in_cur_insn = -1;
+i32 reg_loaded_in_prev_insn = -1;
+// Count of back-to-banck mem operations.
+u64 load_after_load = 0, last_load_after_load = 0;
+u64 load_after_store = 0, last_load_after_store = 0;
+u64 store_after_load = 0, last_store_after_load = 0;
+u64 store_after_store = 0, last_store_after_store = 0;
 // Prefetch buffering: single word version for 32-bit memories
 u32 last_fetched_address = 0xffffffff;
 u32 last_fetched_word = 0xffffffff;
@@ -150,6 +167,11 @@ void printStats(void)
     fprintf(stderr, "Canceled fetches:   %12lld\n", canceled_fetches);
     fprintf(stderr, "Branch fetch stalls:%12lld\n", branch_fetch_stalls);
     fprintf(stderr, "Arbitration clashes:%12lld\n", arbitration_conflicts);
+    fprintf(stderr, "Load-after-load:    %12lld\n", load_after_load);
+    fprintf(stderr, "Load-after-store:   %12lld\n", load_after_store);
+    fprintf(stderr, "Store-after-load:   %12lld\n", store_after_load);
+    fprintf(stderr, "Store-after-store:  %12lld\n", store_after_store);
+
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
@@ -177,6 +199,10 @@ void printStatsDelta(void)
     fprintf(stderr, "Canceled fetches:   %12lld\n", canceled_fetches - last_canceled_fetches);
     fprintf(stderr, "Branch fetch stalls:%12lld\n", branch_fetch_stalls - last_branch_fetch_stalls);
     fprintf(stderr, "Arbitration clashes:%12lld\n", arbitration_conflicts - last_arbitration_conflicts);
+    fprintf(stderr, "Load-after-load:    %12lld\n", load_after_load - last_load_after_load);
+    fprintf(stderr, "Load-after-store:   %12lld\n", load_after_store - last_load_after_store);
+    fprintf(stderr, "Store-after-load:   %12lld\n", store_after_load - last_store_after_load);
+    fprintf(stderr, "Store-after-store:  %12lld\n", store_after_store - last_store_after_store);
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
@@ -218,9 +244,9 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     if (statsReportCounter == 1)
-      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Canceled_fetches, Branch_fetch_stalls, Arbitration_conflicts\n");
+      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Canceled_fetches, Branch_fetch_stalls, Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store\n");
     fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n", ram_data_reads, ram_insn_reads, ram_writes,
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, canceled_fetches, branch_fetch_stalls, arbitration_conflicts);
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, canceled_fetches, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)
@@ -525,6 +551,8 @@ char simLoadInsn(u32 address, u16 *value)
     {
       ram_insn_reads++;
       ram_access = 1;
+      if (data_access_in_cur_cycle)
+        arbitration_conflicts++;
     }
     fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
   }
@@ -552,6 +580,8 @@ char simLoadInsn(u32 address, u16 *value)
         {
           flash_insn_reads++;
           flash_access = 1;
+          if (data_access_in_cur_cycle)
+            arbitration_conflicts++;
         }
         fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
         last_fetched_address = address & ~0x3;
@@ -591,6 +621,8 @@ char simLoadInsn(u32 address, u16 *value)
         {
           flash_insn_reads++;
           flash_access = 1;
+          if (data_access_in_cur_cycle)
+            arbitration_conflicts++;
         }
       }
     }
@@ -602,6 +634,8 @@ char simLoadInsn(u32 address, u16 *value)
       {
         flash_insn_reads++;
         flash_access = 1;
+        if (data_access_in_cur_cycle)
+          arbitration_conflicts++;
       }
     }
   }
@@ -684,6 +718,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
     {
       ram_data_reads++;
       ram_access = 1;
+      data_access_in_three_cycles = 1;
     }
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
@@ -707,6 +742,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
     {
       flash_data_reads++;
       flash_access = 1;
+      data_access_in_three_cycles = 1;
     }
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
@@ -867,6 +903,7 @@ char simStoreData(u32 address, u32 value)
     if (tracingActive || logAllEvents)
     {
       ram_writes++;
+      data_access_in_three_cycles = 1;
       // ram_access = 1;
     }
 
@@ -897,6 +934,7 @@ char simStoreData(u32 address, u32 value)
     {
       flash_writes++;
       flash_access = 1;
+      data_access_in_three_cycles = 1;
     }
 
     #if MEM_COUNT_INST
