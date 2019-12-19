@@ -117,11 +117,11 @@ u32 asrs_i()
         {
             result = opA >> opB;
         }
-
-        cpu_set_flag_c((opA >> (opB - 1)) & 0x1);
     }
 
     cpu_set_gpr(decoded.rD, result);
+
+    cpu_set_flag_c((opA >> (opB - 1)) & 0x1);
 
     do_nflag(result);
     do_zflag(result);
