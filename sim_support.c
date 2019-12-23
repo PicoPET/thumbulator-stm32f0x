@@ -714,7 +714,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if (tracingActive || logAllEvents)
+    if ((tracingActive || logAllEvents) && !falseRead)
     {
       ram_data_reads++;
       ram_access = 1;
@@ -722,12 +722,14 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
     }
     *value = ram[(address & RAM_ADDRESS_MASK) >> 2];
 
-    #if PRINT_MEM_OPS
-      if(!falseRead) printf("%llu\t%llu\tR\t%8.8X\t%d\n", cycleCount, insnCount, address, *value);
-    #endif
+#if PRINT_MEM_OPS
+    if(!falseRead)
+      printf("%llu\t%llu\tR\t%8.8X\t%d\n", cycleCount, insnCount, address, *value);
+#endif
 
 #if PRINT_ALL_MEM
-    fprintf(stderr, "%8.8X: Ram read at 0x%8.8X=0x%8.8X\n", cpu_get_pc()-4, address, *value);
+    if(!falseRead)
+      fprintf(stderr, "%8.8X: Ram read at 0x%8.8X=0x%8.8X\n", cpu_get_pc()-4, address, *value);
 #endif
   }
   else
@@ -738,7 +740,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if (tracingActive || logAllEvents)
+    if ((tracingActive || logAllEvents) && !falseRead)
     {
       flash_data_reads++;
       flash_access = 1;
@@ -746,12 +748,14 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
     }
     *value = flash[(address & FLASH_ADDRESS_MASK) >> 2];
 
-    #if PRINT_MEM_OPS
-      if(!falseRead) printf("%llu\t%llu\tR\t%8.8X\t%d\n", cycleCount, insnCount, address, *value);
-    #endif
+#if PRINT_MEM_OPS
+    if(!falseRead)
+      printf("%llu\t%llu\tR\t%8.8X\t%d\n", cycleCount, insnCount, address, *value);
+#endif
       
 #if PRINT_ALL_MEM
-    fprintf(stderr, "%8.8X: Flash read at 0x%8.8X=0x%8.8X\n", cpu_get_pc()-4, address, *value);
+    if(!falseRead)
+      fprintf(stderr, "%8.8X: Flash read at 0x%8.8X=0x%8.8X\n", cpu_get_pc()-4, address, *value);
 #endif
   }
 
@@ -762,13 +766,13 @@ char simStoreData(u32 address, u32 value)
 {
   unsigned int word;
 
-  #if MEM_CHECKS
+#if MEM_CHECKS
     if((address & 0x3) != 0) // Thumb-mode requires LSB = 1
     {
       fprintf(stderr, "Unalinged data memory write: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-  #endif
+#endif
 
   if(address >= RAM_START)
   {
