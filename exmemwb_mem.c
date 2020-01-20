@@ -52,7 +52,11 @@ u32 stm()
     
     u32 numStored = 0;
     u32 address = cpu_get_gpr(decoded.rN);
-    
+
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     for(int i = 0; i < 8; ++i)
     {
         int mask = 1 << i;
@@ -89,7 +93,7 @@ u32 pop()
     
     u32 numLoaded = 0;
     u32 address = cpu_get_sp();
-    
+
     for(int i = 0; i < 16; ++i)
     {
         int mask = 1 << i;
@@ -133,7 +137,11 @@ u32 push()
     
     u32 numStored = 0;
     u32 address = cpu_get_sp();
-    
+
+    // Track uses of previously loaded reg in store address.
+    if (14 == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     for(int i = 14; i >= 0; --i)
     {
         int mask = 1 << i;
@@ -242,7 +250,7 @@ u32 ldr_r()
 // LDRB - Load byte from offset from register
 u32 ldrb_i()
 {
-	diss_printf("ldrb r%u, [r%u, #0x%X]\n", decoded.rD, decoded.rN, decoded.imm);
+    diss_printf("ldrb r%u, [r%u, #0x%X]\n", decoded.rD, decoded.rN, decoded.imm);
     
 	u32 base = cpu_get_gpr(decoded.rN);
     u32 offset = zeroExtend32(decoded.imm);
@@ -450,6 +458,10 @@ u32 str_i()
     u32 offset = zeroExtend32(decoded.imm << 2);
     u32 effectiveAddress = base + offset;
     
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     simStoreData(effectiveAddress, cpu_get_gpr(decoded.rD));
     
     #if PRINT_STORES_WITH_STATE
@@ -469,6 +481,10 @@ u32 str_sp()
     u32 offset = zeroExtend32(decoded.imm << 2);
     u32 effectiveAddress = base + offset;
     
+    // Track uses of previously loaded reg in store address.
+    if (14 == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     simStoreData(effectiveAddress, cpu_get_gpr(decoded.rD));
     
     #if PRINT_STORES_WITH_STATE
@@ -488,6 +504,11 @@ u32 str_r()
     u32 offset = cpu_get_gpr(decoded.rM);
     u32 effectiveAddress = base + offset;
     
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn
+        || decoded.rM == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     simStoreData(effectiveAddress, cpu_get_gpr(decoded.rD));
     
     #if PRINT_STORES_WITH_STATE
@@ -512,6 +533,10 @@ u32 strb_i()
     u32 orig;
     simLoadData_internal(effectiveAddressWordAligned, &orig, 1);
     
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     // Select the correct byte
     switch (effectiveAddress & 0x3) {
         case 0:
@@ -551,6 +576,11 @@ u32 strb_r()
     u32 orig;
     simLoadData_internal(effectiveAddressWordAligned, &orig, 1);
     
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn
+        || decoded.rM == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     // Select the correct byte
     switch (effectiveAddress & 0x3) {
         case 0:
@@ -590,6 +620,10 @@ u32 strh_i()
     u32 orig;
     simLoadData_internal(effectiveAddressWordAligned, &orig, 1);
     
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     // Select the correct byte
     switch (effectiveAddress & 0x2) {
         case 0:
@@ -598,14 +632,14 @@ u32 strh_i()
         default:
             orig = (orig & 0x0000FFFF) | (data << 16);
     }
-    
+
     simStoreData(effectiveAddressWordAligned, orig);
-    
+
     #if PRINT_STORES_WITH_STATE
         printf("write: %08X %08X\n", effectiveAddressWordAligned, orig);
     #endif
     store_in_cur_insn = 1;
-    
+
     return TIMING_MEM;
 }
 
@@ -619,10 +653,15 @@ u32 strh_r()
     u32 effectiveAddress = base + offset;
     u32 effectiveAddressWordAligned = effectiveAddress & ~0x3;
     u32 data = cpu_get_gpr(decoded.rD) & 0xFFFF;
-    
+
     u32 orig;
     simLoadData_internal(effectiveAddressWordAligned, &orig, 1);
-    
+
+    // Track uses of previously loaded reg in store address.
+    if (decoded.rN == reg_loaded_in_prev_insn
+        || decoded.rM == reg_loaded_in_prev_insn)
+        store_addr_reg_load_in_prev_insn = 1;
+
     // Select the correct byte
     switch (effectiveAddress & 0x2) {
         case 0:

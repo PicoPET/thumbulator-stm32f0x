@@ -75,6 +75,8 @@ u64 store_after_load = 0, last_store_after_load = 0;
 u64 store_after_store = 0, last_store_after_store = 0;
 u64 use_after_load = 0, last_use_after_load = 0;
 u64 burst_loads = 0, last_burst_loads = 0, burst_stores = 0, last_burst_stores = 0;
+bool use_after_load_seen = 0;
+bool store_addr_reg_load_in_prev_insn = 0;
 // Prefetch buffering: single word version for 32-bit memories
 u32 last_fetched_address = 0xffffffff;
 u32 last_fetched_word = 0xffffffff;
