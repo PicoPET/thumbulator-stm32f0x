@@ -54,7 +54,7 @@ extern u64 last_primary_opcode_stats[64];
     u32 cpu_get_gpr(u32 gpr);
     void cpu_set_gpr(u32 gpr, u32 value);
 #else
-    #define cpu_get_gpr(x) cpu.gpr[x]
+    #define cpu_get_gpr(x) { if (load_in_prev_insn && reg_loaded_in_prev_insn == cpu.gpr[x]) use_after_load_seen = 1; cpu.gpr[x] }
     #define cpu_set_gpr(x, y) cpu.gpr[x] = y
 #endif
 

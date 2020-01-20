@@ -73,6 +73,8 @@ u64 load_after_load = 0, last_load_after_load = 0;
 u64 load_after_store = 0, last_load_after_store = 0;
 u64 store_after_load = 0, last_store_after_load = 0;
 u64 store_after_store = 0, last_store_after_store = 0;
+u64 use_after_load = 0, last_use_after_load = 0;
+u64 burst_loads = 0, last_burst_loads = 0, burst_stores = 0, last_burst_stores = 0;
 // Prefetch buffering: single word version for 32-bit memories
 u32 last_fetched_address = 0xffffffff;
 u32 last_fetched_word = 0xffffffff;
@@ -143,6 +145,13 @@ void saveStats(void)
     last_canceled_fetches = canceled_fetches;
     last_branch_fetch_stalls = branch_fetch_stalls;
     last_arbitration_conflicts = arbitration_conflicts;
+    last_load_after_load = load_after_load;
+    last_store_after_load = store_after_load;
+    last_load_after_store = load_after_store;
+    last_store_after_store = store_after_store;
+    last_use_after_load = use_after_load;
+    last_burst_loads = burst_loads;
+    last_burst_stores = burst_stores;
     memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
     memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
 }
@@ -171,6 +180,9 @@ void printStats(void)
     fprintf(stderr, "Load-after-store:   %12lld\n", load_after_store);
     fprintf(stderr, "Store-after-load:   %12lld\n", store_after_load);
     fprintf(stderr, "Store-after-store:  %12lld\n", store_after_store);
+    fprintf(stderr, "Use-after-load:     %12lld\n", use_after_load);
+    fprintf(stderr, "Burst loads:        %12lld\n", burst_loads);
+    fprintf(stderr, "Burst stores:       %12lld\n", burst_stores);
 
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
@@ -183,7 +195,7 @@ void printStats(void)
 void printStatsDelta(void)
 {
     u32 i;
- #if MEM_COUNT_INST
+#if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
 #endif
     fprintf(stderr, "Executed insns:     %12lld\n", insnCount - last_insnCount);
@@ -203,6 +215,10 @@ void printStatsDelta(void)
     fprintf(stderr, "Load-after-store:   %12lld\n", load_after_store - last_load_after_store);
     fprintf(stderr, "Store-after-load:   %12lld\n", store_after_load - last_store_after_load);
     fprintf(stderr, "Store-after-store:  %12lld\n", store_after_store - last_store_after_store);
+    fprintf(stderr, "Use-after-load:     %12lld\n", use_after_load - last_use_after_load);
+    fprintf(stderr, "Burst loads:        %12lld\n", burst_loads - last_burst_loads);
+    fprintf(stderr, "Burst stores:       %12lld\n", burst_stores - last_burst_stores);
+
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
     {
@@ -245,8 +261,8 @@ void printStatsCSV(void)
  #endif
     if (statsReportCounter == 1)
       fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Canceled_fetches, Branch_fetch_stalls, Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store\n");
-    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n", ram_data_reads, ram_insn_reads, ram_writes,
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, canceled_fetches, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store);
+    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n, %12lld, %12lld, %12lld", ram_data_reads, ram_insn_reads, ram_writes,
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, canceled_fetches, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store, use_after_load, burst_loads, burst_stores);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)

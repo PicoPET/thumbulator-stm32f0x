@@ -24,14 +24,21 @@ u32 ldm()
             cpu_set_gpr(i, data);
             address += 4;
             ++numLoaded;
+            // If there will be a load-use dependency, it will be
+            // on the last register to be loaded.
             reg_loaded_in_cur_insn = i;
         }
     }
+
+    // Update the burst load counter if at least one register was loaded.
+    if (numLoaded > 0)
+        burst_loads += numLoaded - 1;
     
     if(rNWritten == 0)
     {
         cpu_set_gpr(decoded.rN, address);
-        reg_loaded_in_cur_insn = decoded.rN;
+        // There's no delay constraint on the address.
+        // reg_loaded_in_cur_insn = decoded.rN;
     }
     
     load_in_cur_insn = 1;
@@ -63,7 +70,11 @@ u32 stm()
             ++numStored;
         }
     }
-    
+
+    // Update the burst store counter if at least one register was stored.
+    if (numStored > 0)
+        burst_stores += numStored - 1;
+
     cpu_set_gpr(decoded.rN, address);
     store_in_cur_insn = 1;
     return 1 + numStored;
@@ -101,7 +112,12 @@ u32 pop()
             reg_loaded_in_cur_insn = 14;
         }
     }
-    
+
+    // Update the count of burst loads if at least one register
+    // was popped from the stack.
+    if (numLoaded > 0)
+        burst_loads += numLoaded - 1;
+
     cpu_set_sp(address);
 
     // Assume there are no outstanding data accesses after a pop.
@@ -133,7 +149,12 @@ u32 push()
         if(i == 14)
             i = 8;
     }
-    
+
+    // Update the count of burst stores if at least one register
+    // was pushed onto the stack.
+    if (numStored > 0)
+        burst_stores += numStored - 1;
+
     cpu_set_sp(address);
 
     return 1 + numStored;

@@ -16,6 +16,9 @@ u64 last_primary_opcode_stats[64];
     u32 cpu_get_gpr(u32 gpr)
     {
         gprReadHooks[gpr]();
+        // Track use-after-load stalls.
+        if (load_in_prev_insn && reg_loaded_in_prev_insn == gpr)
+          use_after_load_seen = 1;
         return cpu.gpr[gpr];
     }
 
