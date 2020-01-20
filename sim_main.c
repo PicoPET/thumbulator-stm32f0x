@@ -311,10 +311,8 @@ int main(int argc, char *argv[])
         }
 
         // Aggregate use-after-load information.
-        // Assume use-after-load causes stalls only on addressing.
         if (use_after_load_seen
-            && (load_in_cur_insn
-                || (store_in_cur_insn && store_addr_reg_load_in_prev_insn)))
+            && (load_in_cur_insn || store_in_cur_insn))
           use_after_load++;
         use_after_load_seen = 0;
         store_addr_reg_load_in_prev_insn = 0;
