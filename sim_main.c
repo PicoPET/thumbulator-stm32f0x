@@ -273,8 +273,8 @@ int main(int argc, char *argv[])
             // NOTE 1: cpu_get_pc() has already the value of the target, but lastCPU.gpr[15] points to the insn
             //         that follows the branch, i.e., the fallthru address.
             // NOTE 2: PC values are in Thumb mode (bit 0 set).
-            if ((lastCPU.gpr[15] & 0x2) == 0)
-              canceled_fetches++;
+            if ((lastCPU.gpr[15] & 0x2) == 0x2)
+              nonword_taken_branches++;
 
             // Count actual stalls caused by cancellation of either fallthru prefetch on cond branch
             // or a non word-aligned branch destination.
@@ -311,9 +311,15 @@ int main(int argc, char *argv[])
         }
 
         // Aggregate use-after-load information.
-        if (use_after_load_seen
-            && (load_in_cur_insn || store_in_cur_insn))
-          use_after_load++;
+        if (use_after_load_seen)
+        {
+          if (load_in_cur_insn)
+            use_after_load_ld++;
+          else if (store_in_cur_insn)
+            use_after_load_st++;
+          else
+            use_after_load_alu++;
+        }
         use_after_load_seen = 0;
         store_addr_reg_load_in_prev_insn = 0;
 

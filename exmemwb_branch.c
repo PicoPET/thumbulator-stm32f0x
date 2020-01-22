@@ -189,7 +189,7 @@ u32 b_c()
     if ((cpu_get_pc() & 0x2 == 0x2)
         && (tracingActive || logAllEvents))
         {
-            canceled_fetches++;
+            // nonword_taken_branches++;
             branch_fetch_stall = 1;
         }
 

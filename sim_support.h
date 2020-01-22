@@ -37,7 +37,8 @@ extern u64 flash_insn_reads;
 extern u64 flash_writes;
 extern u64 taken_branches;
 extern u64 nonword_branch_destinations;
-extern u64 canceled_fetches;
+extern u64 nonword_branch_insns;
+extern u64 nonword_taken_branches;
 extern bool branch_fetch_stall; // Boolean to represent branch-induced stall/cancellation condition
 extern bool ram_access; // Boolean to mark a RAM request in the current decode cycle
 extern bool flash_access; // Boolean to mark a Flash request in the current decode cycle
@@ -48,7 +49,8 @@ extern bool load_in_cur_insn, load_in_prev_insn, store_in_cur_insn, store_in_pre
 extern i32 reg_loaded_in_cur_insn, reg_loaded_in_prev_insn;
 extern bool use_after_load_seen;
 extern bool store_addr_reg_load_in_prev_insn;
-extern u64 load_after_load, load_after_store, store_after_load, store_after_store, use_after_load;
+extern u64 load_after_load, load_after_store, store_after_load, store_after_store;
+extern u64 use_after_load_ld, use_after_load_st, use_after_load_alu;
 extern u64 burst_loads, burst_stores;
 #define SHIFT_ISSUED_DATA_ACCESSES \
   { \
