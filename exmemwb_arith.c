@@ -259,6 +259,8 @@ u32 muls()
 
     do_nflag(result);
     do_zflag(result);
-    
-    return 32;
+
+    // On STM32F0xx the multiplier is single-cycle.
+    // return 32;
+    return 1;
 }
