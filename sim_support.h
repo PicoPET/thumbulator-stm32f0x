@@ -52,6 +52,7 @@ extern bool store_addr_reg_load_in_prev_insn;
 extern u64 load_after_load, load_after_store, store_after_load, store_after_store;
 extern u64 use_after_load_ld, use_after_load_st, use_after_load_alu;
 extern u64 burst_loads, burst_stores;
+extern u64 bl_insns, blx_insns, bx_insns;
 #define SHIFT_ISSUED_DATA_ACCESSES \
   { \
     data_access_in_cur_cycle = data_access_in_next_cycle; \

@@ -38,6 +38,8 @@ u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
 u64 flash_insn_prefetch_hits = 0;
 u64 nonword_taken_branches = 0;
+u64 bl_insns = 0, blx_insns = 0, bx_insns = 0;
+u64 last_bl_insns = 0, last_blx_insns = 0, last_bx_insns = 0;
 bool branch_fetch_stall = 0;
 u64 branch_fetch_stalls = 0;
 bool ram_access = 0; // Boolean to mark a RAM request in the current decode cycle
@@ -158,6 +160,9 @@ void saveStats(void)
     last_use_after_load_alu = use_after_load_alu;
     last_burst_loads = burst_loads;
     last_burst_stores = burst_stores;
+    last_bl_insns = bl_insns;
+    last_blx_insns = blx_insns;
+    last_bx_insns = bx_insns;
     memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
     memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
 }
@@ -191,6 +196,9 @@ void printStats(void)
     fprintf(stderr, "Use-after-load-ALU:  %12lld\n", use_after_load_alu);
     fprintf(stderr, "Burst loads:         %12lld\n", burst_loads);
     fprintf(stderr, "Burst stores:        %12lld\n", burst_stores);
+    fprintf(stderr, "BL insns:            %12lld\n", bl_insns);
+    fprintf(stderr, "BLX insns:           %12lld\n", blx_insns);
+    fprintf(stderr, "BX insns:            %12lld\n", bx_insns);
 
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
@@ -228,6 +236,9 @@ void printStatsDelta(void)
     fprintf(stderr, "Use-after-load-ALU:  %12lld\n", use_after_load_alu - last_use_after_load_alu);
     fprintf(stderr, "Burst loads:         %12lld\n", burst_loads - last_burst_loads);
     fprintf(stderr, "Burst stores:        %12lld\n", burst_stores - last_burst_stores);
+    fprintf(stderr, "BL insns:            %12lld\n", bl_insns - last_bl_insns);
+    fprintf(stderr, "BLX insns:           %12lld\n", blx_insns - last_blx_insns);
+    fprintf(stderr, "BX insns:            %12lld\n", bx_insns - last_bx_insns);
 
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
@@ -270,9 +281,9 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     if (statsReportCounter == 1)
-      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls, Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store, Use after load in LD, Use after load in ST, Use after load in ALU, Burst loads, Burst stores\n");
+      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls, Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store, Use after load in LD, Use after load in ST, Use after load in ALU, Burst loads, Burst stores, BL insns, BLX insns, BX insns\n");
     fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n, %12lld, %12lld, %12lld", ram_data_reads, ram_insn_reads, ram_writes,
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store, use_after_load_ld, use_after_load_st, use_after_load_alu, burst_loads, burst_stores);
+      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store, use_after_load_ld, use_after_load_st, use_after_load_alu, burst_loads, burst_stores, bl_insns, blx_insns, bx_insns);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)

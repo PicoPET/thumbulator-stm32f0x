@@ -215,7 +215,10 @@ u32 blx()
     cpu_set_lr(cpu_get_pc() - 0x2);
     cpu_set_pc(address);
     takenBranch = 1;
-    
+
+    // BLX may require an additional cycle: Use a separate counter.
+    blx_insns++;
+
     return TIMING_BRANCH;
 }
 
@@ -238,9 +241,12 @@ u32 bx()
         except_exit(address);
     else
         cpu_set_pc(address);
-    
+
     takenBranch = 1;
-    
+
+    // BX may require an additional cycle: Use a separate counter.
+    bx_insns++;
+
     return TIMING_BRANCH;
 }
 
@@ -257,6 +263,9 @@ u32 bl()
     cpu_set_lr(cpu_get_pc());
     cpu_set_pc(result);
     takenBranch = 1;
+
+    // BL requires an additional cycle: Use a separate counter.
+    bl_insns++;
     
     return TIMING_BRANCH_LINK;
 }

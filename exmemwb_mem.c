@@ -30,9 +30,8 @@ u32 ldm()
         }
     }
 
-    // Update the burst load counter if at least one register was loaded.
-    if (numLoaded > 0)
-        burst_loads += numLoaded - 1;
+    // Update the burst load counter.
+    burst_loads += numLoaded;
     
     if(rNWritten == 0)
     {
@@ -75,9 +74,8 @@ u32 stm()
         }
     }
 
-    // Update the burst store counter if at least one register was stored.
-    if (numStored > 0)
-        burst_stores += numStored - 1;
+    // Update the burst store counter.
+    burst_stores += numStored;
 
     cpu_set_gpr(decoded.rN, address);
     store_in_cur_insn = 1;
@@ -117,10 +115,8 @@ u32 pop()
         }
     }
 
-    // Update the count of burst loads if at least one register
-    // was popped from the stack.
-    if (numLoaded > 0)
-        burst_loads += numLoaded - 1;
+    // Update the count of burst loads.
+    burst_loads += numLoaded;
 
     cpu_set_sp(address);
 
@@ -158,10 +154,8 @@ u32 push()
             i = 8;
     }
 
-    // Update the count of burst stores if at least one register
-    // was pushed onto the stack.
-    if (numStored > 0)
-        burst_stores += numStored - 1;
+    // Update the count of burst stores.
+    burst_stores += numStored;
 
     cpu_set_sp(address);
 
