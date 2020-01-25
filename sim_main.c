@@ -320,7 +320,6 @@ int main(int argc, char *argv[])
           else
             use_after_load_alu++;
         }
-        use_after_load_seen = 0;
         store_addr_reg_load_in_prev_insn = 0;
 
         // Shift the load/store information by one instruction.
@@ -330,6 +329,7 @@ int main(int argc, char *argv[])
         store_in_cur_insn = 0;
         reg_loaded_in_prev_insn = reg_loaded_in_cur_insn;
         reg_loaded_in_cur_insn = -1;
+        use_after_load_seen = 0;
 
         unsigned cp_addr = (cpu.gpr[15] - 4) & (~0x1);
         switch(cp_addr) {
