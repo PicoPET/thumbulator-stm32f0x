@@ -101,6 +101,7 @@ u32 pop()
             simLoadData(address, &data);
             cpu_set_gpr(i, data);
             reg_loaded_in_cur_insn = i;
+            load_in_cur_insn = 1;
             ++numLoaded;
             if(i == 15)
                 takenBranch = 1;
@@ -112,6 +113,7 @@ u32 pop()
         {
             i = 14;
             reg_loaded_in_cur_insn = 14;
+            load_in_cur_insn = 1;
         }
     }
 
