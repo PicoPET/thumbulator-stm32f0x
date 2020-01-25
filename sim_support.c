@@ -68,8 +68,8 @@ bool load_in_cur_insn = 0;
 bool load_in_prev_insn = 0;
 bool store_in_cur_insn = 0;
 bool store_in_prev_insn = 0;
-i32 reg_loaded_in_cur_insn = -1;
-i32 reg_loaded_in_prev_insn = -1;
+char reg_loaded_in_cur_insn = -1;
+char reg_loaded_in_prev_insn = -1;
 // Count of back-to-banck mem operations.
 u64 load_after_load = 0, last_load_after_load = 0;
 u64 load_after_store = 0, last_load_after_store = 0;

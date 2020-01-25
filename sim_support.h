@@ -46,7 +46,7 @@ extern u64 arbitration_conflicts; // Count of potential RAM/Flash arbitration co
 extern u64 branch_fetch_stalls; // Count of branch-induced fetch delays (caused by stalls and/or cancellations)
 extern bool data_access_in_cur_cycle, data_access_in_next_cycle, data_access_in_two_cycles, data_access_in_three_cycles;
 extern bool load_in_cur_insn, load_in_prev_insn, store_in_cur_insn, store_in_prev_insn;
-extern i32 reg_loaded_in_cur_insn, reg_loaded_in_prev_insn;
+extern char reg_loaded_in_cur_insn, reg_loaded_in_prev_insn;
 extern bool use_after_load_seen;
 extern bool store_addr_reg_load_in_prev_insn;
 extern u64 load_after_load, load_after_store, store_after_load, store_after_store;

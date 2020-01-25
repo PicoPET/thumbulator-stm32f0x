@@ -13,7 +13,7 @@ u64 last_opcode_stats[64][16];
 u64 last_primary_opcode_stats[64];
 
 #if HOOK_GPR_ACCESSES
-    u32 cpu_get_gpr(u32 gpr)
+    u32 cpu_get_gpr(char gpr)
     {
         gprReadHooks[gpr]();
         // Track use-after-load stalls.
@@ -22,7 +22,7 @@ u64 last_primary_opcode_stats[64];
         return cpu.gpr[gpr];
     }
 
-    void cpu_set_gpr(u32 gpr, u32 value)
+    void cpu_set_gpr(char gpr, u32 value)
     {
         gprWriteHooks[gpr]();
         cpu.gpr[gpr] = value;
