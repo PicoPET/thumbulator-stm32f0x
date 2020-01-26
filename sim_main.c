@@ -317,6 +317,8 @@ int main(int argc, char *argv[])
             use_after_load_ld++;
           else if (store_in_cur_insn)
             use_after_load_st++;
+          else if (cmp_in_cur_insn)
+            use_after_load_cmp++;
           else
             use_after_load_alu++;
         }
@@ -329,6 +331,7 @@ int main(int argc, char *argv[])
         store_in_cur_insn = 0;
         reg_loaded_in_prev_insn = reg_loaded_in_cur_insn;
         reg_loaded_in_cur_insn = -1;
+        cmp_in_cur_insn = 0;
         use_after_load_seen = 0;
 
         unsigned cp_addr = (cpu.gpr[15] - 4) & (~0x1);

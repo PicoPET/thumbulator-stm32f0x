@@ -45,14 +45,16 @@ extern bool flash_access; // Boolean to mark a Flash request in the current deco
 extern u64 arbitration_conflicts; // Count of potential RAM/Flash arbitration conflicts
 extern u64 branch_fetch_stalls; // Count of branch-induced fetch delays (caused by stalls and/or cancellations)
 extern bool data_access_in_cur_cycle, data_access_in_next_cycle, data_access_in_two_cycles, data_access_in_three_cycles;
-extern bool load_in_cur_insn, load_in_prev_insn, store_in_cur_insn, store_in_prev_insn;
+extern bool load_in_cur_insn, load_in_prev_insn, store_in_cur_insn, store_in_prev_insn, cmp_in_cur_insn;
 extern char reg_loaded_in_cur_insn, reg_loaded_in_prev_insn;
 extern bool use_after_load_seen;
 extern bool store_addr_reg_load_in_prev_insn;
 extern u64 load_after_load, load_after_store, store_after_load, store_after_store;
-extern u64 use_after_load_ld, use_after_load_st, use_after_load_alu;
+extern u64 use_after_load_ld, use_after_load_st, use_after_load_alu, use_after_load_cmp;
 extern u64 burst_loads, burst_stores;
 extern u64 bl_insns, blx_insns, bx_insns;
+extern u64 pop_high_regs, pop_sp, pop_pc;
+
 #define SHIFT_ISSUED_DATA_ACCESSES \
   { \
     data_access_in_cur_cycle = data_access_in_next_cycle; \

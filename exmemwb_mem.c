@@ -92,6 +92,18 @@ u32 pop()
     u32 numLoaded = 0;
     u32 address = cpu_get_sp();
 
+    if (decoded.reg_list & 0xf0)
+        // Poppping high regs (r4-r7)
+        pop_high_regs++;
+
+    if (decoded.reg_list & (1 << 14))
+        // Popping SP.
+        pop_sp++;
+
+    if (decoded.reg_list & (1 << 15))
+        // Popping PC (previously pushed as LR).
+        pop_pc++;
+
     for(int i = 0; i < 16; ++i)
     {
         int mask = 1 << i;

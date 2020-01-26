@@ -63,13 +63,14 @@ bool data_access_in_cur_cycle = 0;
 bool data_access_in_next_cycle = 0;
 bool data_access_in_two_cycles = 0;
 bool data_access_in_three_cycles = 0;
-// Current/PAST loads, stores
+// Current/PAST loads, stores, compares
 bool load_in_cur_insn = 0;
 bool load_in_prev_insn = 0;
 bool store_in_cur_insn = 0;
 bool store_in_prev_insn = 0;
 char reg_loaded_in_cur_insn = -1;
 char reg_loaded_in_prev_insn = -1;
+bool cmp_in_cur_insn = 0;
 // Count of back-to-banck mem operations.
 u64 load_after_load = 0, last_load_after_load = 0;
 u64 load_after_store = 0, last_load_after_store = 0;
@@ -78,7 +79,10 @@ u64 store_after_store = 0, last_store_after_store = 0;
 u64 use_after_load_ld = 0, last_use_after_load_ld = 0;
 u64 use_after_load_st = 0, last_use_after_load_st = 0;
 u64 use_after_load_alu = 0, last_use_after_load_alu = 0;
+u64 use_after_load_cmp = 0, last_use_after_load_cmp = 0;
 u64 burst_loads = 0, last_burst_loads = 0, burst_stores = 0, last_burst_stores = 0;
+u64 pop_high_regs = 0, pop_sp = 0, pop_pc = 0;
+u64 last_pop_high_regs = 0, last_pop_sp = 0, last_pop_pc = 0;
 bool use_after_load_seen = 0;
 bool store_addr_reg_load_in_prev_insn = 0;
 // Prefetch buffering: single word version for 32-bit memories
@@ -158,11 +162,16 @@ void saveStats(void)
     last_use_after_load_ld = use_after_load_ld;
     last_use_after_load_st = use_after_load_st;
     last_use_after_load_alu = use_after_load_alu;
+    last_use_after_load_cmp = use_after_load_cmp;
     last_burst_loads = burst_loads;
     last_burst_stores = burst_stores;
     last_bl_insns = bl_insns;
     last_blx_insns = blx_insns;
     last_bx_insns = bx_insns;
+    last_pop_high_regs = pop_high_regs;
+    last_pop_sp = pop_sp;
+    last_pop_pc = pop_pc;
+
     memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
     memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
 }
@@ -174,31 +183,35 @@ void printStats(void)
 #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
 #endif
-    fprintf(stderr, "Executed insns:      %12lld\n", insnCount);
-    fprintf(stderr, "RAM data reads:      %12lld\n", ram_data_reads);
-    fprintf(stderr, "RAM insn reads:      %12lld\n", ram_insn_reads);
-    fprintf(stderr, "RAM writes:          %12lld\n", ram_writes);
-    fprintf(stderr, "Flash data reads:    %12lld\n", flash_data_reads);
-    fprintf(stderr, "Flash insn reads:    %12lld\n", flash_insn_reads);
-    fprintf(stderr, "Flash writes:        %12lld\n", flash_writes);
-    fprintf(stderr, "Taken branches:      %12lld\n", taken_branches);
-    fprintf(stderr, "Nonword branch dsts: %12lld\n", nonword_branch_destinations);
-    fprintf(stderr, "Nonword taken branch:%12lld\n", nonword_taken_branches);
-    fprintf(stderr, "Insn prefetch hits:  %12lld\n", flash_insn_prefetch_hits);
-    fprintf(stderr, "Branch fetch stalls: %12lld\n", branch_fetch_stalls);
-    fprintf(stderr, "Arbitration clashes: %12lld\n", arbitration_conflicts);
-    fprintf(stderr, "Load-after-load:     %12lld\n", load_after_load);
-    fprintf(stderr, "Load-after-store:    %12lld\n", load_after_store);
-    fprintf(stderr, "Store-after-load:    %12lld\n", store_after_load);
-    fprintf(stderr, "Store-after-store:   %12lld\n", store_after_store);
-    fprintf(stderr, "Use-after-load-LD:   %12lld\n", use_after_load_ld);
-    fprintf(stderr, "Use-after-load-ST:   %12lld\n", use_after_load_st);
-    fprintf(stderr, "Use-after-load-ALU:  %12lld\n", use_after_load_alu);
-    fprintf(stderr, "Burst loads:         %12lld\n", burst_loads);
-    fprintf(stderr, "Burst stores:        %12lld\n", burst_stores);
-    fprintf(stderr, "BL insns:            %12lld\n", bl_insns);
-    fprintf(stderr, "BLX insns:           %12lld\n", blx_insns);
-    fprintf(stderr, "BX insns:            %12lld\n", bx_insns);
+    fprintf(stderr, "Executed insns:      %12ld\n", insnCount);
+    fprintf(stderr, "RAM data reads:      %12ld\n", ram_data_reads);
+    fprintf(stderr, "RAM insn reads:      %12ld\n", ram_insn_reads);
+    fprintf(stderr, "RAM writes:          %12ld\n", ram_writes);
+    fprintf(stderr, "Flash data reads:    %12ld\n", flash_data_reads);
+    fprintf(stderr, "Flash insn reads:    %12ld\n", flash_insn_reads);
+    fprintf(stderr, "Flash writes:        %12ld\n", flash_writes);
+    fprintf(stderr, "Taken branches:      %12ld\n", taken_branches);
+    fprintf(stderr, "Nonword branch dsts: %12ld\n", nonword_branch_destinations);
+    fprintf(stderr, "Nonword taken branch:%12ld\n", nonword_taken_branches);
+    fprintf(stderr, "Insn prefetch hits:  %12ld\n", flash_insn_prefetch_hits);
+    fprintf(stderr, "Branch fetch stalls: %12ld\n", branch_fetch_stalls);
+    fprintf(stderr, "Arbitration clashes: %12ld\n", arbitration_conflicts);
+    fprintf(stderr, "Load-after-load:     %12ld\n", load_after_load);
+    fprintf(stderr, "Load-after-store:    %12ld\n", load_after_store);
+    fprintf(stderr, "Store-after-load:    %12ld\n", store_after_load);
+    fprintf(stderr, "Store-after-store:   %12ld\n", store_after_store);
+    fprintf(stderr, "Use-after-load-LD:   %12ld\n", use_after_load_ld);
+    fprintf(stderr, "Use-after-load-ST:   %12ld\n", use_after_load_st);
+    fprintf(stderr, "Use-after-load-ALU:  %12ld\n", use_after_load_alu);
+    fprintf(stderr, "Use-after-load-CMP:  %12ld\n", use_after_load_cmp);
+    fprintf(stderr, "Burst loads:         %12ld\n", burst_loads);
+    fprintf(stderr, "Burst stores:        %12ld\n", burst_stores);
+    fprintf(stderr, "BL insns:            %12ld\n", bl_insns);
+    fprintf(stderr, "BLX insns:           %12ld\n", blx_insns);
+    fprintf(stderr, "BX insns:            %12ld\n", bx_insns);
+    fprintf(stderr, "PUSH/POP high regs:  %12ld\n", pop_high_regs);
+    fprintf(stderr, "PUSH/POP SP:         %12ld\n", pop_sp);
+    fprintf(stderr, "PUSH/POP PC/LR:      %12ld\n", pop_pc);
 
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
@@ -214,31 +227,35 @@ void printStatsDelta(void)
 #if MEM_COUNT_INST
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
 #endif
-    fprintf(stderr, "Executed insns:      %12lld\n", insnCount - last_insnCount);
-    fprintf(stderr, "RAM data reads:      %12lld\n", ram_data_reads - last_ram_data_reads);
-    fprintf(stderr, "RAM insn reads:      %12lld\n", ram_insn_reads - last_ram_insn_reads);
-    fprintf(stderr, "RAM writes:          %12lld\n", ram_writes - last_ram_writes);
-    fprintf(stderr, "Flash data reads:    %12lld\n", flash_data_reads - last_flash_data_reads);
-    fprintf(stderr, "Flash insn reads:    %12lld\n", flash_insn_reads - last_flash_insn_reads);
-    fprintf(stderr, "Flash writes:        %12lld\n", flash_writes - last_flash_writes);
-    fprintf(stderr, "Taken branches:      %12lld\n", taken_branches - last_taken_branches);
-    fprintf(stderr, "Nonword branch dsts: %12lld\n", nonword_branch_destinations - last_nonword_branch_destinations);
-    fprintf(stderr, "Nonword taken branch:%12lld\n", nonword_taken_branches - last_nonword_taken_branches);
-    fprintf(stderr, "Insn prefetch hits:  %12lld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
-    fprintf(stderr, "Branch fetch stalls: %12lld\n", branch_fetch_stalls - last_branch_fetch_stalls);
-    fprintf(stderr, "Arbitration clashes: %12lld\n", arbitration_conflicts - last_arbitration_conflicts);
-    fprintf(stderr, "Load-after-load:     %12lld\n", load_after_load - last_load_after_load);
-    fprintf(stderr, "Load-after-store:    %12lld\n", load_after_store - last_load_after_store);
-    fprintf(stderr, "Store-after-load:    %12lld\n", store_after_load - last_store_after_load);
-    fprintf(stderr, "Store-after-store:   %12lld\n", store_after_store - last_store_after_store);
-    fprintf(stderr, "Use-after-load-LD:   %12lld\n", use_after_load_ld - last_use_after_load_ld);
-    fprintf(stderr, "Use-after-load-ST:   %12lld\n", use_after_load_st - last_use_after_load_st);
-    fprintf(stderr, "Use-after-load-ALU:  %12lld\n", use_after_load_alu - last_use_after_load_alu);
-    fprintf(stderr, "Burst loads:         %12lld\n", burst_loads - last_burst_loads);
-    fprintf(stderr, "Burst stores:        %12lld\n", burst_stores - last_burst_stores);
-    fprintf(stderr, "BL insns:            %12lld\n", bl_insns - last_bl_insns);
-    fprintf(stderr, "BLX insns:           %12lld\n", blx_insns - last_blx_insns);
-    fprintf(stderr, "BX insns:            %12lld\n", bx_insns - last_bx_insns);
+    fprintf(stderr, "Executed insns:      %12ld\n", insnCount - last_insnCount);
+    fprintf(stderr, "RAM data reads:      %12ld\n", ram_data_reads - last_ram_data_reads);
+    fprintf(stderr, "RAM insn reads:      %12ld\n", ram_insn_reads - last_ram_insn_reads);
+    fprintf(stderr, "RAM writes:          %12ld\n", ram_writes - last_ram_writes);
+    fprintf(stderr, "Flash data reads:    %12ld\n", flash_data_reads - last_flash_data_reads);
+    fprintf(stderr, "Flash insn reads:    %12ld\n", flash_insn_reads - last_flash_insn_reads);
+    fprintf(stderr, "Flash writes:        %12ld\n", flash_writes - last_flash_writes);
+    fprintf(stderr, "Taken branches:      %12ld\n", taken_branches - last_taken_branches);
+    fprintf(stderr, "Nonword branch dsts: %12ld\n", nonword_branch_destinations - last_nonword_branch_destinations);
+    fprintf(stderr, "Nonword taken branch:%12ld\n", nonword_taken_branches - last_nonword_taken_branches);
+    fprintf(stderr, "Insn prefetch hits:  %12ld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
+    fprintf(stderr, "Branch fetch stalls: %12ld\n", branch_fetch_stalls - last_branch_fetch_stalls);
+    fprintf(stderr, "Arbitration clashes: %12ld\n", arbitration_conflicts - last_arbitration_conflicts);
+    fprintf(stderr, "Load-after-load:     %12ld\n", load_after_load - last_load_after_load);
+    fprintf(stderr, "Load-after-store:    %12ld\n", load_after_store - last_load_after_store);
+    fprintf(stderr, "Store-after-load:    %12ld\n", store_after_load - last_store_after_load);
+    fprintf(stderr, "Store-after-store:   %12ld\n", store_after_store - last_store_after_store);
+    fprintf(stderr, "Use-after-load-LD:   %12ld\n", use_after_load_ld - last_use_after_load_ld);
+    fprintf(stderr, "Use-after-load-ST:   %12ld\n", use_after_load_st - last_use_after_load_st);
+    fprintf(stderr, "Use-after-load-ALU:  %12ld\n", use_after_load_alu - last_use_after_load_alu);
+    fprintf(stderr, "Use-after-load-CMP:  %12ld\n", use_after_load_cmp - last_use_after_load_cmp);
+    fprintf(stderr, "Burst loads:         %12ld\n", burst_loads - last_burst_loads);
+    fprintf(stderr, "Burst stores:        %12ld\n", burst_stores - last_burst_stores);
+    fprintf(stderr, "BL insns:            %12ld\n", bl_insns - last_bl_insns);
+    fprintf(stderr, "BLX insns:           %12ld\n", blx_insns - last_blx_insns);
+    fprintf(stderr, "BX insns:            %12ld\n", bx_insns - last_bx_insns);
+    fprintf(stderr, "PUSH/POP high regs:  %12ld\n", pop_high_regs - last_pop_high_regs);
+    fprintf(stderr, "PUSH/POP SP:         %12ld\n", pop_sp - last_pop_sp);
+    fprintf(stderr, "PUSH/POP PC/LR:      %12ld\n", pop_pc - last_pop_pc);
 
     fprintf(stderr, "Opcode statistics:\n");
     for (i = 0; i < 64; i++)
@@ -281,9 +298,24 @@ void printStatsCSV(void)
     fprintf(stderr, "Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
  #endif
     if (statsReportCounter == 1)
-      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes, Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls, Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store, Use after load in LD, Use after load in ST, Use after load in ALU, Burst loads, Burst stores, BL insns, BLX insns, BX insns\n");
-    fprintf(f1, "%12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld, %12lld\n, %12lld, %12lld, %12lld", ram_data_reads, ram_insn_reads, ram_writes,
-      flash_data_reads, flash_insn_reads, flash_writes, taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls, arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store, use_after_load_ld, use_after_load_st, use_after_load_alu, burst_loads, burst_stores, bl_insns, blx_insns, bx_insns);
+      fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes,"
+                  " Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls,"
+                  " Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store,"
+                  " Use after load in LD, Use after load in ST, Use after load in ALU, Use after load CMP,"
+                  " Burst loads, Burst stores, BL insns, BLX insns, BX insns,"
+                  " PUSH/POP high regs, PUSH/POP SP, PUSH/POP PC/LR\n");
+    fprintf(f1, "%12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld\n",
+                ram_data_reads, ram_insn_reads, ram_writes, flash_data_reads, flash_insn_reads, flash_writes,
+                taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls,
+                arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store,
+                use_after_load_ld, use_after_load_st, use_after_load_alu, use_after_load_cmp,
+                burst_loads, burst_stores, bl_insns, blx_insns, bx_insns,
+                pop_high_regs, pop_sp, pop_pc);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");
     for (i = 0; i < 64; i++)

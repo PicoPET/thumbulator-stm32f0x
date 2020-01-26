@@ -13,6 +13,8 @@ u32 cmn()
     u32 opB = cpu_get_gpr(decoded.rN);
     u32 result = opA + opB;
 
+    cmp_in_cur_insn = 1;
+
     do_nflag(result);
     do_zflag(result);
     do_cflag(opA, opB, 0);
@@ -29,6 +31,8 @@ u32 cmp_i()
     u32 opB = ~zeroExtend32(decoded.imm);
     u32 result = opA + opB + 1;
 
+    cmp_in_cur_insn = 1;
+
     do_nflag(result);
     do_zflag(result);
     do_cflag(opA, opB, 1);
@@ -44,6 +48,8 @@ u32 cmp_r()
     u32 opA = cpu_get_gpr(decoded.rD);
     u32 opB = ~zeroExtend32(cpu_get_gpr(decoded.rM));
     u32 result = opA + opB + 1;
+
+    cmp_in_cur_insn = 1;
 
     do_nflag(result);
     do_zflag(result);
@@ -62,6 +68,8 @@ u32 tst()
     u32 opB = cpu_get_gpr(decoded.rM);
     u32 result = opA & opB;
     
+    cmp_in_cur_insn = 1;
+
     do_nflag(result);
     do_zflag(result);
     
@@ -80,7 +88,7 @@ u32 b()
     // Stop simulation on a branch-to-self, i.e., when offset == 0xfffffffc.
     if (offset == 0xfffffffc)
     {
-        printf("Program exit (branch-to-self) after\n\t%llu ticks\n\t%llu instructions\n", cycleCount, insnCount);
+        printf("Program exit (branch-to-self) after\n\t%lu ticks\n\t%lu instructions\n", cycleCount, insnCount);
         // printStats();
         sim_exit(0);
     }

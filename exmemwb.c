@@ -301,7 +301,7 @@ u32 entry55(void)
     
     if(insn == 0xDF01)
     {
-        printf("Program exit after\n\t%llu ticks\n\t%llu instructions\n", cycleCount, insnCount);
+        printf("Program exit after\n\t%lu ticks\n\t%lu instructions\n", cycleCount, insnCount);
         #if MEM_COUNT_INST
             printf("Loads: %u\nStores: %u\nCheckpoints: %u\n", load_count, store_count, cp_count);
         #endif
