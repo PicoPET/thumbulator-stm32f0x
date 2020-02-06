@@ -2535,7 +2535,7 @@ void rsp_check_stall()
 
 void rsp_check_watch(unsigned int addr)
 {
-  const char buff[30];
+  char buff[30];
   if( addr != WATCHPOINT_ADDR )
   {
   if( NULL != mp_hash_lookup(WP_WRITE, addr))
