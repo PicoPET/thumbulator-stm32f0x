@@ -54,6 +54,7 @@ extern u64 use_after_load_ld, use_after_load_st, use_after_load_alu, use_after_l
 extern u64 burst_loads, burst_stores;
 extern u64 bl_insns, blx_insns, bx_insns;
 extern u64 pop_high_regs, pop_sp, pop_pc;
+extern u64 word_aligned_bl;
 
 #define SHIFT_ISSUED_DATA_ACCESSES \
   { \

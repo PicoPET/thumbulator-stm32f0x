@@ -83,6 +83,7 @@ u64 use_after_load_cmp = 0, last_use_after_load_cmp = 0;
 u64 burst_loads = 0, last_burst_loads = 0, burst_stores = 0, last_burst_stores = 0;
 u64 pop_high_regs = 0, pop_sp = 0, pop_pc = 0;
 u64 last_pop_high_regs = 0, last_pop_sp = 0, last_pop_pc = 0;
+u64 word_aligned_bl = 0, last_word_aligned_bl = 0;
 bool use_after_load_seen = 0;
 bool store_addr_reg_load_in_prev_insn = 0;
 // Prefetch buffering: single word version for 32-bit memories
@@ -171,6 +172,7 @@ void saveStats(void)
     last_pop_high_regs = pop_high_regs;
     last_pop_sp = pop_sp;
     last_pop_pc = pop_pc;
+    last_word_aligned_bl = word_aligned_bl;
 
     memcpy(last_primary_opcode_stats, primary_opcode_stats, sizeof (primary_opcode_stats));
     memcpy(last_opcode_stats, opcode_stats, sizeof(opcode_stats));
@@ -207,6 +209,7 @@ void printStats(void)
     fprintf(stderr, "Burst loads:         %12ld\n", burst_loads);
     fprintf(stderr, "Burst stores:        %12ld\n", burst_stores);
     fprintf(stderr, "BL insns:            %12ld\n", bl_insns);
+    fprintf(stderr, "BL word-aligned:     %12ld\n", word_aligned_bl);
     fprintf(stderr, "BLX insns:           %12ld\n", blx_insns);
     fprintf(stderr, "BX insns:            %12ld\n", bx_insns);
     fprintf(stderr, "PUSH/POP high regs:  %12ld\n", pop_high_regs);
@@ -251,6 +254,7 @@ void printStatsDelta(void)
     fprintf(stderr, "Burst loads:         %12ld\n", burst_loads - last_burst_loads);
     fprintf(stderr, "Burst stores:        %12ld\n", burst_stores - last_burst_stores);
     fprintf(stderr, "BL insns:            %12ld\n", bl_insns - last_bl_insns);
+    fprintf(stderr, "BL word-aligned:     %12ld\n", word_aligned_bl - last_word_aligned_bl);
     fprintf(stderr, "BLX insns:           %12ld\n", blx_insns - last_blx_insns);
     fprintf(stderr, "BX insns:            %12ld\n", bx_insns - last_bx_insns);
     fprintf(stderr, "PUSH/POP high regs:  %12ld\n", pop_high_regs - last_pop_high_regs);
@@ -302,19 +306,19 @@ void printStatsCSV(void)
                   " Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls,"
                   " Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store,"
                   " Use after load in LD, Use after load in ST, Use after load in ALU, Use after load CMP,"
-                  " Burst loads, Burst stores, BL insns, BLX insns, BX insns,"
+                  " Burst loads, Burst stores, BL insns, BL word aligned, BLX insns, BX insns,"
                   " PUSH/POP high regs, PUSH/POP SP, PUSH/POP PC/LR\n");
     fprintf(f1, "%12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld,"
-                " %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld\n",
                 ram_data_reads, ram_insn_reads, ram_writes, flash_data_reads, flash_insn_reads, flash_writes,
                 taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls,
                 arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store,
                 use_after_load_ld, use_after_load_st, use_after_load_alu, use_after_load_cmp,
-                burst_loads, burst_stores, bl_insns, blx_insns, bx_insns,
+                burst_loads, burst_stores, bl_insns, word_aligned_bl, blx_insns, bx_insns,
                 pop_high_regs, pop_sp, pop_pc);
 
     fprintf(f, "Opcode, total_count, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14, var15, var16\n");

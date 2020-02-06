@@ -267,6 +267,10 @@ u32 bl()
     diss_printf("bl 0x%08X\n", result);
 
     result += cpu_get_pc();
+
+    // A word-aligned BL may cause a discarded fetch.  Count such cases.
+    if ((cpu_get_pc() & 0x2) == 0x0)
+        word_aligned_bl++;
     
     cpu_set_lr(cpu_get_pc());
     cpu_set_pc(result);
