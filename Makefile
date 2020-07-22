@@ -1,4 +1,4 @@
-COPS = -std=c99 -O3 -Wall -pedantic
+COPS = -std=c99 -O2 -g -Wall -pedantic
 STATIC=
 
 sim: *.c *.h Makefile sim1 thumbulator
