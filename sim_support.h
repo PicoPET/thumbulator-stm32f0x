@@ -28,6 +28,11 @@ typedef char bool;
 // Core CPU compenents
 extern u32 ram[RAM_SIZE >> 2];
 extern u32 flash[FLASH_SIZE >> 2];
+
+// Performance counter start/stop PC values.
+extern u32 trace_start_pc;
+extern u32 trace_stop_pc;
+
 // Performance counters
 extern u64 ram_data_reads;
 extern u64 ram_insn_reads;

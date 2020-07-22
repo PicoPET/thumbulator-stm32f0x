@@ -27,6 +27,11 @@ u32 PRINT_STATE_DIFF = PRINT_STATE_DIFF_INIT;
 #endif
 u32 ram[RAM_SIZE >> 2];
 u32 flash[FLASH_SIZE >> 2];
+
+// Performance counter start/stop PC values.
+u32 trace_start_pc = 0;
+u32 trace_stop_pc = 0;
+
 // Event counters
 u64 ram_data_reads = 0;
 u64 ram_insn_reads = 0;

@@ -24,6 +24,38 @@ u64 last_primary_opcode_stats[64];
 
     void cpu_set_gpr(char gpr, u32 value)
     {
+        if (gpr == GPR_PC)
+        {
+            // Start differential logging of events when reaching the start PC address.
+            if (value == trace_start_pc)
+            {
+                if (!tracingActive)
+                {
+                    // Start the logging of events.
+                    tracingActive = 1;
+                    if (useCSVoutput)
+                        printStatsCSV();
+                    else
+	                    // Save baseline for differential statistics.
+                    saveStats();
+                }
+            }
+            // Stop differential logging of events when reaching the stop PC address.
+            if (value == trace_stop_pc)
+            {
+                if (tracingActive)
+                {
+                    // Stop the logging of events.
+                    tracingActive = 0;
+                    if (useCSVoutput)
+                        printStatsCSV();
+                    else
+	                    // Print differential statistics.
+                    printStatsDelta();
+                }
+            }
+        }
+
         gprWriteHooks[gpr]();
         cpu.gpr[gpr] = value;
     }

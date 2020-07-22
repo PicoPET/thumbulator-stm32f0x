@@ -116,48 +116,121 @@ int main(int argc, char *argv[])
 {
     char *file = 0;
     int debug = 0;
+    long int value;
+    char *value_end;
     int i;
 
     if(argc < 2)
     {
-        fprintf(stderr, "Usage: %s [-g] [-pw|-pb] memory_file\n", argv[0]);
+        fprintf(stderr, "Usage: %s [-g] [-pw|-pb] [-t|-s] [--from-pc ADDR] [--to-pc ADDR] memory_file\n", argv[0]);
         return 1;
     }
 
     // Name of the binary file must come last on command line
     file = argv[argc - 1];
-    for (i = 1; i < argc - 1; i++)
+    for (i = 1; i < argc - 1; /* increments in each branch...  */)
     {
       if(0 == strncmp("-g", argv[i], strlen("-g")))
       {
         // Enable debugging.
         debug = 1;
+        i++;
       }
       else if (0 == strcmp("-pw", argv[i]))
       {
         // Prefetch mode: WORD (single 32-bit word).
         prefetch_mode = PREFETCH_MODE_WORD;
+        i++;
       }
       else if (0 == strcmp("-pb", argv[i]))
       {
         // Prefetch mode: BUFFER (three 32-bit words)
         prefetch_mode = PREFETCH_MODE_BUFFER;
+        i++;
       }
       else if (0 == strcmp("-s",argv[i]))
       {
         // SUMMARY mode: Disable trace, enable differential event reporting.
         doTrace = 0;
-	logAllEvents = 0;
+        logAllEvents = 0;
+        i++;
       }
       else if (0 == strcmp("-t", argv[i]))
       {
         // Enable trace, disable differential event reporting.
         doTrace = 1;
+        i++;
       }
       else if (0 == strcmp("-c", argv[i]))
       {
         // Enable CSV output.
         useCSVoutput = 1;
+        i++;
+      }
+      else if (0 == strcmp("--from-pc", argv[i]))
+      {
+        if (i == argc - 2)
+        {
+          // No argument for sure.
+          fprintf(stderr, "*** Argument to '--from-pc' missing, aborting!\n");
+          exit(2);
+        }
+
+        // Use a "universal" conversion function.
+        value = strtol(argv[i+1], &value_end, 0);
+        if (value_end - argv[i+1] < strlen(argv[i+1]))
+        {
+          fprintf(stderr, "*** Argument '%s% following '--from-pc' is not a valid number, aborting!\n", argv[i+1], value);
+          exit(2);
+        }
+
+        if (value < 0L)
+        {
+          fprintf(stderr, "*** Negative value %ld passed as argument to '--from-pc', aborting!\n", value);
+          exit(2);
+        }
+
+        // ARM PC values are always even in dumps, but Thumb mode uses bit 0 as Thumb mode marker.
+        // The highest supported value is 0xfffffffe, and we must add the Thumb marker once the
+        // address is deemed valid.
+        if (value > 0xfffffffe)
+        {
+          fprintf(stderr, "*** Value 0x%lx passed as argument to '--from-pc' is too large, aborting!\n", value);
+          exit(2);
+        }
+        trace_start_pc = (u32) (value + 1);
+        i += 2;
+      }
+      else if (0 == strcmp("--to-pc", argv[i]))
+      {
+        if (i == argc - 2)
+        {
+          // No argument for sure.
+          fprintf(stderr, "*** Argument to '--to-pc' missing, aborting!\n");
+          exit(2);
+        }
+
+        // Use a "universal" conversion function.
+        value = strtol(argv[i+1], &value_end, 0);
+        if (value_end - argv[i+1] < strlen(argv[i+1]))
+        {
+          fprintf(stderr, "*** Argument '%s% following '--to-pc' is not a valid number, aborting!\n", argv[i+1], value);
+          exit(2);
+        }
+
+        if (value < 0L)
+        {
+          fprintf(stderr, "*** Negative value %ld passed as argument to '--to-pc', aborting!\n", value);
+          exit(2);
+        }
+
+        if (value > 0xfffffffe)
+        {
+          fprintf(stderr, "*** Value 0x%lx passed as argument to '--to-pc' is too large, aborting!\n", value);
+          exit(2);
+        }
+        trace_stop_pc = (u32) (value + 1);
+        i += 2;
       }
       else
       {
