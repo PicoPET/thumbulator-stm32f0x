@@ -16,18 +16,12 @@ u64 last_primary_opcode_stats[64];
     u32 cpu_get_gpr(char gpr)
     {
         gprReadHooks[gpr]();
-        // Track use-after-load stalls.
-        if (load_in_prev_insn && reg_loaded_in_prev_insn == gpr)
-          use_after_load_seen = 1;
-        return cpu.gpr[gpr];
-    }
 
-    void cpu_set_gpr(char gpr, u32 value)
-    {
         if (gpr == GPR_PC)
         {
             // Start differential logging of events when reaching the start PC address.
-            if (value == trace_start_pc)
+            // Instructions are fetched from PC - 4, i.e., cpu.gpr[GPR_PC] - 4.
+            if (cpu.gpr[gpr] == trace_start_pc + 4)
             {
                 if (!tracingActive)
                 {
@@ -41,7 +35,8 @@ u64 last_primary_opcode_stats[64];
                 }
             }
             // Stop differential logging of events when reaching the stop PC address.
-            if (value == trace_stop_pc)
+            // Instructions are fetched from PC - 4, i.e., cpu.gpr[GPR_PC] - 4.
+            if (cpu.gpr[gpr] == trace_stop_pc + 4)
             {
                 if (tracingActive)
                 {
@@ -56,6 +51,14 @@ u64 last_primary_opcode_stats[64];
             }
         }
 
+        // Track use-after-load stalls.
+        if (load_in_prev_insn && reg_loaded_in_prev_insn == gpr)
+          use_after_load_seen = 1;
+        return cpu.gpr[gpr];
+    }
+
+    void cpu_set_gpr(char gpr, u32 value)
+    {
         gprWriteHooks[gpr]();
         cpu.gpr[gpr] = value;
     }
