@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
           if (!tracingActive)
           {
             // Start the logging of events.
-            fprintf(stderr, "### Trace started at PC=%08X\n", trace_start_pc & (~1U))
+            fprintf(stderr, "### Trace started at PC=%08X\n", trace_start_pc & (~1U));
                 tracingActive = 1;
             if (useCSVoutput)
               printStatsCSV();
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
           if (tracingActive)
           {
             // Stop the logging of events.
-            fprintf(stderr, "### Trace stopped at PC=%08X\n", trace_stop_pc & (~1U))
+            fprintf(stderr, "### Trace stopped at PC=%08X\n", trace_stop_pc & (~1U));
             tracingActive = 0;
             if (useCSVoutput)
               printStatsCSV();
