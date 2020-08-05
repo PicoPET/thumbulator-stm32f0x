@@ -29,6 +29,9 @@ u32 ram[RAM_SIZE >> 2];
 u32 flash[FLASH_SIZE >> 2];
 
 // Performance counter start/stop PC values.
+// The default value of 0 prevents the starting/stopping of traces
+// without explicit --from-pc/--to-pc option setting since in Thumb
+// mode only odd PC values are valid.
 u32 trace_start_pc = 0;
 u32 trace_stop_pc = 0;
 

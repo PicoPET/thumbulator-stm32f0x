@@ -170,7 +170,10 @@ extern u32 PRINT_STATE_DIFF;
     void (* gprWriteHooks[16])(void);
 #endif
 char simValidMem(u32 address); // Interface for rsp (GDB) server
+extern void saveStats(void);
 extern void printStats(void);
+extern void printStatsCSV(void);
+extern void printStatsDelta(void);
 
 //struct MEMMAPIO {
 //  u32 *cycleCountLSB;

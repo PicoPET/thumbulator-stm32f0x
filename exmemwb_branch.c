@@ -194,7 +194,7 @@ u32 b_c()
 
     // Bcc is 16 bits long at cpu_get_pc() - 4.  If cpu_get_pc() was NOT word aligned,
     // a 32-bit fetch may have been issued and would need to be canceled.
-    if ((cpu_get_pc() & 0x2 == 0x2)
+    if (((cpu_get_pc() & 0x2) == 0x2)
         && (tracingActive || logAllEvents))
         {
             // nonword_taken_branches++;

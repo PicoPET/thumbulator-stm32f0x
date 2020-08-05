@@ -15,52 +15,18 @@ u64 last_primary_opcode_stats[64];
 #if HOOK_GPR_ACCESSES
     u32 cpu_get_gpr(char gpr)
     {
-        gprReadHooks[gpr]();
-
-        if (gpr == GPR_PC)
-        {
-            // Start differential logging of events when reaching the start PC address.
-            // Instructions are fetched from PC - 4, i.e., cpu.gpr[GPR_PC] - 4.
-            if (cpu.gpr[gpr] == trace_start_pc + 4)
-            {
-                if (!tracingActive)
-                {
-                    // Start the logging of events.
-                    tracingActive = 1;
-                    if (useCSVoutput)
-                        printStatsCSV();
-                    else
-	                    // Save baseline for differential statistics.
-                    saveStats();
-                }
-            }
-            // Stop differential logging of events when reaching the stop PC address.
-            // Instructions are fetched from PC - 4, i.e., cpu.gpr[GPR_PC] - 4.
-            if (cpu.gpr[gpr] == trace_stop_pc + 4)
-            {
-                if (tracingActive)
-                {
-                    // Stop the logging of events.
-                    tracingActive = 0;
-                    if (useCSVoutput)
-                        printStatsCSV();
-                    else
-	                    // Print differential statistics.
-                    printStatsDelta();
-                }
-            }
-        }
+        gprReadHooks[(int) gpr]();
 
         // Track use-after-load stalls.
         if (load_in_prev_insn && reg_loaded_in_prev_insn == gpr)
           use_after_load_seen = 1;
-        return cpu.gpr[gpr];
+        return cpu.gpr[(int) gpr];
     }
 
     void cpu_set_gpr(char gpr, u32 value)
     {
-        gprWriteHooks[gpr]();
-        cpu.gpr[gpr] = value;
+        gprWriteHooks[(int) gpr]();
+        cpu.gpr[(int) gpr] = value;
     }
 #endif
 

@@ -13,6 +13,7 @@ char *simulatingFilePath = 0;
 static void fillState(const char *pFileName)
 {
     FILE *fd;
+    int res;
 
     fd = fopen(pFileName, "r");
     
@@ -23,7 +24,12 @@ static void fillState(const char *pFileName)
         sim_exit(1);
     }
 
-    fread(&flash, sizeof(u32), sizeof(flash)/sizeof(u32), fd);
+    res = fread(&flash, sizeof(u32), sizeof(flash)/sizeof(u32), fd);
+    if (res < 0)
+    {
+      perror("fillState");
+      exit(1);
+    }
 
     fclose(fd);
 }
@@ -180,7 +186,7 @@ int main(int argc, char *argv[])
         value = strtol(argv[i+1], &value_end, 0);
         if (value_end - argv[i+1] < strlen(argv[i+1]))
         {
-          fprintf(stderr, "*** Argument '%s% following '--from-pc' is not a valid number, aborting!\n", argv[i+1], value);
+          fprintf(stderr, "*** Argument '%s' following '--from-pc' is not a valid number, aborting!\n", argv[i+1]);
           exit(2);
         }
 
@@ -214,7 +220,7 @@ int main(int argc, char *argv[])
         value = strtol(argv[i+1], &value_end, 0);
         if (value_end - argv[i+1] < strlen(argv[i+1]))
         {
-          fprintf(stderr, "*** Argument '%s% following '--to-pc' is not a valid number, aborting!\n", argv[i+1], value);
+          fprintf(stderr, "*** Argument '%s' following '--to-pc' is not a valid number, aborting!\n", argv[i+1]);
           exit(2);
         }
 
@@ -271,6 +277,7 @@ int main(int argc, char *argv[])
     while(1)
     {
         struct CPU lastCPU;
+        u32 fetch_address;
         
         u16 insn;
         takenBranch = 0;
@@ -298,7 +305,43 @@ int main(int argc, char *argv[])
           }
         #endif
         
-        simLoadInsn(cpu_get_pc() - 0x4, &insn);
+        fetch_address = cpu_get_pc() - 0x4;
+
+        // Start differential logging of events when reaching the start PC address.
+        // The default value of trace_start_pc (0) cannot be reached in Thumb mode.
+        if (fetch_address == trace_start_pc)
+        {
+          if (!tracingActive)
+          {
+            // Start the logging of events.
+            fprintf(stderr, "### Trace started at PC=%08X\n", trace_start_pc & (~1U))
+                tracingActive = 1;
+            if (useCSVoutput)
+              printStatsCSV();
+            else
+              // Save baseline for differential statistics.
+              saveStats();
+          }
+        }
+
+        // Stop differential logging of events when reaching the stop PC address.
+        // The default value of trace_stop_pc (0) cannot be reached in Thumb mode.
+        if (fetch_address == trace_stop_pc)
+        {
+          if (tracingActive)
+          {
+            // Stop the logging of events.
+            fprintf(stderr, "### Trace stopped at PC=%08X\n", trace_stop_pc & (~1U))
+            tracingActive = 0;
+            if (useCSVoutput)
+              printStatsCSV();
+            else
+              // Print differential statistics.
+              printStatsDelta();
+          }
+        }
+
+        simLoadInsn(fetch_address, &insn);
         diss_printf("%04X\n", insn);
         
         decode(insn);
