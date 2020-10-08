@@ -6,6 +6,7 @@
 #include "decode.h"
 #include "rsp-server.h"
 #include "sim_support.h"
+#include "programpoints.h"
 
 char *simulatingFilePath = 0;
 
@@ -113,6 +114,10 @@ void sim_exit(int i)
     while(rsp.stalled)
       handle_rsp();
   }
+
+#ifdef PROGRAM_POINTS
+    program_point_print();
+#endif
 
   exit(i);
 }
@@ -271,11 +276,21 @@ int main(int argc, char *argv[])
       handle_rsp();
     }
 
+#ifdef PROGRAM_POINTS
+    bool collectFlowConstraints = 0;
+    bool stopTrigger = 0;
+    bool stopTriggerDelayed = 0;
+    program_point_init();
+#endif
+
     // Execute the program
     // Simulation will terminate when it executes insn == 0xBFAA or jump-to-self.
     bool addToWasted = 0;
     while(1)
     {
+#ifdef PROGRAM_POINTS
+        bool traceTrigger = tracingActive;
+#endif
         struct CPU lastCPU;
         u32 fetch_address;
         
@@ -344,6 +359,17 @@ int main(int argc, char *argv[])
         simLoadInsn(fetch_address, &insn);
         diss_printf("%04X\n", insn);
         
+#ifdef PROGRAM_POINTS
+        if (cpu_get_pc() - 0x5 == 0x800012c)
+            collectFlowConstraints = 1;
+
+        if (stopTriggerDelayed)
+            collectFlowConstraints = 0;
+
+        if (collectFlowConstraints)
+            program_point_update(cpu_get_pc() - 0x5);
+#endif
+
         decode(insn);
         exwbmem(insn);
 
@@ -491,6 +517,11 @@ int main(int argc, char *argv[])
         while(rsp.stalled)
           handle_rsp();
       }
+
+#ifdef PROGRAM_POINTS
+        stopTriggerDelayed = stopTrigger;
+        stopTrigger = traceTrigger && !tracingActive;
+#endif
     }
 
     return 0;

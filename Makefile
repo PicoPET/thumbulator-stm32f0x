@@ -21,7 +21,8 @@ thumbulator:
 	gcc $(COPS) -c exmemwb_misc.c
 	gcc $(COPS) -c exmemwb_branch.c
 	gcc $(COPS) -c except.c
-	gcc $(COPS) -o sim_main$(STATIC) sim_support.o exmemwb_*.o exmemwb.o decode.o except.o rsp-server.o sim_main.o -lssl -lcrypto $(STATIC)
+	gcc $(COPS) -c programpoints.c
+	gcc $(COPS) -o sim_main$(STATIC) sim_support.o exmemwb_*.o exmemwb.o decode.o except.o programpoints.o rsp-server.o sim_main.o -lssl -lcrypto $(STATIC)
 	rm -f *.o
 
 clean :
