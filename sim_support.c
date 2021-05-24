@@ -44,6 +44,7 @@ u64 flash_insn_reads = 0;
 u64 flash_writes = 0;
 u64 taken_branches = 0;
 u64 nonword_branch_destinations = 0;
+u64 ram_insn_prefetch_hits = 0;
 u64 flash_insn_prefetch_hits = 0;
 u64 nonword_taken_branches = 0;
 u64 bl_insns = 0, blx_insns = 0, bx_insns = 0;
@@ -62,6 +63,7 @@ u64 last_flash_insn_reads = 0;
 u64 last_flash_writes = 0;
 u64 last_taken_branches = 0;
 u64 last_nonword_branch_destinations = 0;
+u64 last_ram_insn_prefetch_hits = 0;
 u64 last_flash_insn_prefetch_hits = 0;
 u64 last_nonword_taken_branches = 0;
 u64 last_branch_fetch_stalls = 0;
@@ -160,6 +162,7 @@ void saveStats(void)
     last_flash_writes = flash_writes;
     last_taken_branches = taken_branches;
     last_nonword_branch_destinations = nonword_branch_destinations;
+    last_ram_insn_prefetch_hits = ram_insn_prefetch_hits;
     last_flash_insn_prefetch_hits = flash_insn_prefetch_hits;
     last_nonword_taken_branches = nonword_taken_branches;
     last_branch_fetch_stalls = branch_fetch_stalls;
@@ -203,7 +206,8 @@ void printStats(void)
     fprintf(stderr, "Taken branches:      %12ld\n", taken_branches);
     fprintf(stderr, "Nonword branch dsts: %12ld\n", nonword_branch_destinations);
     fprintf(stderr, "Nonword taken branch:%12ld\n", nonword_taken_branches);
-    fprintf(stderr, "Insn prefetch hits:  %12ld\n", flash_insn_prefetch_hits);
+    fprintf(stderr, "RAM prefetch hits:   %12ld\n", ram_insn_prefetch_hits);
+    fprintf(stderr, "Flash prefetch hits: %12ld\n", flash_insn_prefetch_hits);
     fprintf(stderr, "Branch fetch stalls: %12ld\n", branch_fetch_stalls);
     fprintf(stderr, "Arbitration clashes: %12ld\n", arbitration_conflicts);
     fprintf(stderr, "Load-after-load:     %12ld\n", load_after_load);
@@ -248,7 +252,8 @@ void printStatsDelta(void)
     fprintf(stderr, "Taken branches:      %12ld\n", taken_branches - last_taken_branches);
     fprintf(stderr, "Nonword branch dsts: %12ld\n", nonword_branch_destinations - last_nonword_branch_destinations);
     fprintf(stderr, "Nonword taken branch:%12ld\n", nonword_taken_branches - last_nonword_taken_branches);
-    fprintf(stderr, "Insn prefetch hits:  %12ld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
+    fprintf(stderr, "RAM prefetch hits:   %12ld\n", ram_insn_prefetch_hits - last_ram_insn_prefetch_hits);
+    fprintf(stderr, "Flash prefetch hits: %12ld\n", flash_insn_prefetch_hits - last_flash_insn_prefetch_hits);
     fprintf(stderr, "Branch fetch stalls: %12ld\n", branch_fetch_stalls - last_branch_fetch_stalls);
     fprintf(stderr, "Arbitration clashes: %12ld\n", arbitration_conflicts - last_arbitration_conflicts);
     fprintf(stderr, "Load-after-load:     %12ld\n", load_after_load - last_load_after_load);
@@ -311,19 +316,19 @@ void printStatsCSV(void)
  #endif
     if (statsReportCounter == 1)
       fprintf(f1, "RAM_data_reads, RAM_insn_reads, RAM_writes, Flash_data_reads, Flash_insn_reads, Flash_writes,"
-                  " Taken_branches, Nonword_branch_targets, Nonword taken branches, Insn prefetch hits, Branch_fetch_stalls,"
+                  " Taken_branches, Nonword_branch_targets, Nonword taken branches, RAM prefetch hits, Flash prefetch hits, Branch_fetch_stalls,"
                   " Arbitration_conflicts, Load after load, Load after store, Store after load, Store after store,"
                   " Use after load in LD, Use after load in ST, Use after load in ALU, Use after load CMP,"
                   " Burst loads, Burst stores, BL insns, BL word aligned, BLX insns, BX insns,"
                   " PUSH/POP high regs, PUSH/POP SP, PUSH/POP PC/LR\n");
     fprintf(f1, "%12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
-                " %12ld, %12ld, %12ld, %12ld, %12ld,"
+                " %12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld, %12ld, %12ld, %12ld,"
                 " %12ld, %12ld, %12ld\n",
                 ram_data_reads, ram_insn_reads, ram_writes, flash_data_reads, flash_insn_reads, flash_writes,
-                taken_branches, nonword_branch_destinations, nonword_taken_branches, flash_insn_prefetch_hits, branch_fetch_stalls,
+                taken_branches, nonword_branch_destinations, nonword_taken_branches, ram_insn_prefetch_hits, flash_insn_prefetch_hits, branch_fetch_stalls,
                 arbitration_conflicts, load_after_load, load_after_store, store_after_load, store_after_store,
                 use_after_load_ld, use_after_load_st, use_after_load_alu, use_after_load_cmp,
                 burst_loads, burst_stores, bl_insns, word_aligned_bl, blx_insns, bx_insns,
@@ -628,16 +633,44 @@ char simLoadInsn(u32 address, u16 *value)
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
     // TODO: Add support of RAM word buffer.
-    if (tracingActive || logAllEvents)
+    if (prefetch_mode == PREFETCH_MODE_WORD || prefetch_mode == PREFETCH_MODE_BUFFER)
     {
-      ram_insn_reads++;
-      ram_access = 1;
-      if (data_access_in_cur_cycle)
-        arbitration_conflicts++;
+      if ((address & ~0x3) == last_fetched_address)
+      {
+        // Request address corresponds to the last fetched word.
+        fromMem = last_fetched_word;
+        if (tracingActive || logAllEvents)
+          ram_insn_prefetch_hits++;
+      }
+      else
+      {
+        // Request address does not match the last fetched word.
+        if (tracingActive || logAllEvents)
+        {
+          ram_insn_reads++;
+          ram_access = 1;
+          if (data_access_in_cur_cycle)
+            arbitration_conflicts++;
+        }
+        fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
+          last_fetched_address = address & ~0x3;
+        last_fetched_word = fromMem;
+      }
     }
-    fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
+    else  // Neither PREFETCH_MODE_WORD nor PREFETCH_MODE_BUFFER
+    {
+      // Original behavior: Plain load from RAM on every instruction.
+      fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
+      if (tracingActive || logAllEvents)
+      {
+        ram_insn_reads++;
+        ram_access = 1;
+        if (data_access_in_cur_cycle)
+          arbitration_conflicts++;
+      }
+    }
   }
-  else
+  else  // Not a RAM access, so it should be inside Flash address range.
   {
     if(address >= (FLASH_START + FLASH_SIZE))
     {
