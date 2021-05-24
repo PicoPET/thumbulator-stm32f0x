@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include "exmemwb.h"
 #include "except.h"
 #include "decode.h"
@@ -8,6 +10,11 @@
 #include "sim_support.h"
 
 char *simulatingFilePath = 0;
+// Used to track resource usage and execution time.
+// The end values are set (and the differences computed)
+// in function 'b()' in exmemwb_branch.c.
+struct timeval start_time, end_time;
+struct rusage start_rusage, end_rusage;
 
 // Load a program into the simulator's RAM
 static void fillState(const char *pFileName)
@@ -102,19 +109,56 @@ void printState()
 
 void sim_exit(int i)
 {
-  if(cpu.debug)
-  {
-    rsp.stalled = cpu.debug;
-    rsp_trap(); 
+#ifdef __linux__
+    long long wall_secs, user_secs, system_secs, wall_usecs, user_usecs, system_usecs;
 
-    if(i != 0)
-      fprintf(stderr, "Simulator exiting due to error...\n");
-    
-    while(rsp.stalled)
-      handle_rsp();
-  }
+    // Determine time and resource usage at end of simulation.
+    // Get time information first as it is duration-sensitive
+    // and has a low resource usage.
+    if (gettimeofday(&end_time, NULL) < 0)
+      perror("b(): gettimeofday");
+    if (getrusage(RUSAGE_SELF, &end_rusage) < 0)
+      perror("b(): getrusage");
 
-  exit(i);
+    // wallclock time: struct timeval difference (tv_sec, tv_usec fields)
+    // user time: struct rusage field ru_utime (itself a struct timeval)
+    // system time: struct rusage field ru_stime (itself a struct timeval)
+
+#define DELTA_TIME(START_TVAL,END_TVAL,SECS,USECS)      \
+    SECS = (END_TVAL).tv_sec - (START_TVAL).tv_sec;     \
+    USECS = (END_TVAL).tv_usec - (START_TVAL).tv_usec;  \
+    if (USECS < 0)                                      \
+    {                                                   \
+        (SECS)--;                                       \
+        (USECS) += 1000000;                             \
+    }
+
+    DELTA_TIME(start_time, end_time, wall_secs, wall_usecs);
+    DELTA_TIME(start_rusage.ru_utime, end_rusage.ru_utime, user_secs, user_usecs);
+    DELTA_TIME(start_rusage.ru_stime, end_rusage.ru_stime, system_secs, system_usecs);
+
+    // Print performance information.
+    fprintf(stderr,
+            "Simulation speed:\n%12.1f ticks/s\n%12.1f insns/s\n%10d.%06ds elapsed\n%10d.%06ds user\n%10d.%06ds system\n",
+            ((float)cycleCount) / ((float)wall_secs + wall_usecs / 1000000.0),
+            ((float)insnCount) / ((float)wall_secs + wall_usecs / 1000000.0),
+            wall_secs, wall_usecs,
+            user_secs, user_usecs,
+            system_secs, system_usecs);
+#endif
+    if (cpu.debug)
+    {
+      rsp.stalled = cpu.debug;
+      rsp_trap();
+
+      if (i != 0)
+        fprintf(stderr, "Simulator exiting due to error...\n");
+
+      while (rsp.stalled)
+        handle_rsp();
+    }
+
+    exit(i);
 }
 
 
@@ -274,6 +318,13 @@ int main(int argc, char *argv[])
     // Execute the program
     // Simulation will terminate when it executes insn == 0xBFAA or jump-to-self.
     bool addToWasted = 0;
+
+    // Track execution time and resource usage
+    if (getrusage(RUSAGE_SELF, &start_rusage) < 0)
+      perror("sim_main: getrusage");
+    if (gettimeofday(&start_time, NULL) < 0)
+      perror("sim_main:gettimeofday");
+
     while(1)
     {
         struct CPU lastCPU;
@@ -492,6 +543,7 @@ int main(int argc, char *argv[])
           handle_rsp();
       }
     }
+
 
     return 0;
 }
