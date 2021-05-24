@@ -110,7 +110,7 @@ bool useCSVoutput = 0;
 // Trace or differential counters: 1 if in progress.
 bool tracingActive = 0;
 // Log all events even if not tracing the execution in any way: 1 if enabled.
-bool logAllEvents = 1;
+bool logAllEvents = 0;
 bool takenBranch = 0;
 ADDRESS_LIST addressReadBeforeWriteList = {0, NULL};
 ADDRESS_LIST addressWriteBeforeReadList = {0, NULL};
@@ -639,13 +639,13 @@ char simLoadInsn(u32 address, u16 *value)
       {
         // Request address corresponds to the last fetched word.
         fromMem = last_fetched_word;
-        if (tracingActive || logAllEvents)
+        if (tracingActive && logAllEvents)
           ram_insn_prefetch_hits++;
       }
       else
       {
         // Request address does not match the last fetched word.
-        if (tracingActive || logAllEvents)
+        if (tracingActive && logAllEvents)
         {
           ram_insn_reads++;
           ram_access = 1;
@@ -661,7 +661,7 @@ char simLoadInsn(u32 address, u16 *value)
     {
       // Original behavior: Plain load from RAM on every instruction.
       fromMem = ram[(address & RAM_ADDRESS_MASK) >> 2];
-      if (tracingActive || logAllEvents)
+      if (tracingActive && logAllEvents)
       {
         ram_insn_reads++;
         ram_access = 1;
@@ -684,13 +684,13 @@ char simLoadInsn(u32 address, u16 *value)
       {
         // Request address corresponds to the last fetched word.
         fromMem = last_fetched_word;
-        if (tracingActive || logAllEvents)
+        if (tracingActive && logAllEvents)
           flash_insn_prefetch_hits++;
       }
       else
       {
         // Request address does not match the last fetched word.
-        if (tracingActive || logAllEvents)
+        if (tracingActive && logAllEvents)
         {
           flash_insn_reads++;
           flash_access = 1;
@@ -716,7 +716,7 @@ char simLoadInsn(u32 address, u16 *value)
           fromMem = prefetch_words[i];
           prefetch_set_mru(i);
           is_a_hit = 1;
-          if (tracingActive || logAllEvents)
+          if (tracingActive && logAllEvents)
             flash_insn_prefetch_hits++;
           break;
         }
@@ -731,7 +731,7 @@ char simLoadInsn(u32 address, u16 *value)
         fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
         prefetch_words[victim] = fromMem;
         prefetch_addresses[victim] = address & ~0x3;
-        if (tracingActive || logAllEvents)
+        if (tracingActive && logAllEvents)
         {
           flash_insn_reads++;
           flash_access = 1;
@@ -744,7 +744,7 @@ char simLoadInsn(u32 address, u16 *value)
     {
       // Original behavior: Plain load from flash on every instruction.
       fromMem = flash[(address & FLASH_ADDRESS_MASK) >> 2];
-      if (tracingActive || logAllEvents)
+      if (tracingActive && logAllEvents)
       {
         flash_insn_reads++;
         flash_access = 1;
@@ -828,7 +828,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       if(!containsAddress(&addressWriteBeforeReadList, address))
         addressReads += addAddress(&addressReadBeforeWriteList, address);
     }
-    if ((tracingActive || logAllEvents) && !falseRead)
+    if ((tracingActive && logAllEvents) && !falseRead)
     {
       ram_data_reads++;
       ram_access = 1;
@@ -854,7 +854,7 @@ char simLoadData_internal(u32 address, u32 *value, u32 falseRead)
       fprintf(stderr, "Error: DLF Memory access out of range: 0x%8.8X, pc=%x\n", address, cpu_get_pc());
       sim_exit(1);
     }
-    if ((tracingActive || logAllEvents) && !falseRead)
+    if ((tracingActive && logAllEvents) && !falseRead)
     {
       flash_data_reads++;
       flash_access = 1;
@@ -946,11 +946,14 @@ char simStoreData(u32 address, u32 value)
           // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
           fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
           // Start the logging of events.
-          tracingActive = 1;
-          if (useCSVoutput)
-            printStatsCSV();
-          else
-            saveStats();
+          if (logAllEvents)
+          {
+            tracingActive = 1;
+            if (useCSVoutput)
+              printStatsCSV();
+            else
+              saveStats();
+          }
           return 0;
         }
         else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
@@ -958,7 +961,7 @@ char simStoreData(u32 address, u32 value)
         {
           // Write 0x1 to GPIOC_BRR[0] or 0x1 to GPIOC_BSRR[16]: clear the GPIOC[0] pin
           fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
-          if (tracingActive)
+          if (tracingActive && logAllEvents)
           {
             // Stop the logging of events.
             tracingActive = 0;
@@ -968,7 +971,7 @@ char simStoreData(u32 address, u32 value)
 	            // Print differential statistics.
               printStatsDelta();
           }
-	        else
+	        else if (logAllEvents)
 	          printStats();
           return 0;
         }
@@ -1018,7 +1021,7 @@ char simStoreData(u32 address, u32 value)
     #endif
 
     ram[(address & RAM_ADDRESS_MASK) >> 2] = value;
-    if (tracingActive || logAllEvents)
+    if (tracingActive && logAllEvents)
     {
       ram_writes++;
       data_access_in_three_cycles = 1;
@@ -1048,7 +1051,7 @@ char simStoreData(u32 address, u32 value)
     #endif
       
     flash[(address & FLASH_ADDRESS_MASK) >> 2] = value;
-    if (tracingActive || logAllEvents)
+    if (tracingActive && logAllEvents)
     {
       flash_writes++;
       flash_access = 1;
