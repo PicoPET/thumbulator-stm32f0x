@@ -164,12 +164,12 @@ extern u32 PRINT_STATE_DIFF;
   extern u32 cp_count;
 #endif
 #if HOOK_GPR_ACCESSES
-    void do_nothing(void);
-    void report_sp(void);
-    void (* gprReadHooks[16])(void);
-    void (* gprWriteHooks[16])(void);
+    extern void do_nothing(void);
+    extern void report_sp(void);
+    extern void (* gprReadHooks[16])(void);
+    extern void (* gprWriteHooks[16])(void);
 #endif
-char simValidMem(u32 address); // Interface for rsp (GDB) server
+extern char simValidMem(u32 address); // Interface for rsp (GDB) server
 extern void saveStats(void);
 extern void printStats(void);
 extern void printStatsCSV(void);
