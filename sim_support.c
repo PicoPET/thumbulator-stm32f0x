@@ -938,13 +938,23 @@ char simStoreData(u32 address, u32 value)
         return 0;
       }
 
+// Shortcuts for GPIO control register offsets
+#define GPIOB_BSRR 0x08000418
+#define GPIOB_BRR  0x08000428
+#define GPIOC_BSRR 0x08000818
+#define GPIOC_BRR  0x08000828
+
       if(address >= MEMMAPIO_START && address <= (MEMMAPIO_START + MEMMAPIO_SIZE))
       {
-        // TeamPlay specific: Raising/clearing GPIOC[0] causes a cycle count message on console.
-        if (value == 0x1 && address == (MEMMAPIO_START + 0x08000818))
+        // TeamPlay specific: Raising/clearing GPIOB[0]/GPIOC[0] starts/stops event counting
+        // and produces a cycle and insn count message on console.
+        // On CameraPill, the trigger pin is GPIOB[0].
+        // On F0-Discovery and Nucleo-F0 boards the trigger pin is GPIOC[0].
+        if ((value == 0x1 && address == (MEMMAPIO_START + GPIOB_BSRR))
+            || (value == 0x1 && address == (MEMMAPIO_START + GPIOC_BSRR)))
         {
-          // Write 0x1 to GPIOC_BSRR[0]: Set the GPIOC[0] pin
-          fprintf(stderr, "TeamPlay: GPIOC[0] raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          // Write 0x1 to GPIOB_BSRR[0] (resp. GPIOC_BSRR[0]): Set the GPIOB[0] (resp. GPIOC[0]) pin.
+          fprintf(stderr, "TeamPlay: trigger pin raised at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
           // Start the logging of events.
           if (logAllEvents)
           {
@@ -956,11 +966,15 @@ char simStoreData(u32 address, u32 value)
           }
           return 0;
         }
-        else if ((value == 0x1 && address == (MEMMAPIO_START + 0x08000828))
-                 || (value == 0x00010000 && address == (MEMMAPIO_START + 0x08000818)))
+        else if ((value == 0x1
+                  && (address == (MEMMAPIO_START + GPIOB_BRR)
+                      || address == (MEMMAPIO_START + GPIOC_BRR)))
+                 || (value == 0x00010000
+                     && (address == (MEMMAPIO_START + GPIOB_BSRR))
+                         || address == (MEMMAPIO_START + GPIOC_BSRR)))
         {
-          // Write 0x1 to GPIOC_BRR[0] or 0x1 to GPIOC_BSRR[16]: clear the GPIOC[0] pin
-          fprintf(stderr, "TeamPlay: GPIOC[0] cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
+          // Write 0x1 to GPIOB_BRR[0]/GPIOC or 0x1 to GPIOB_BSRR[0]/GPIOC_BSRR[16]: clear the GPIOB[0]/GPIOC[0] pin.
+          fprintf(stderr, "TeamPlay: trigger pin cleared at cycle %lld, insn count %lld, pc = %x\n", cycleCount, insnCount, cpu_get_pc());
           if (tracingActive && logAllEvents)
           {
             // Stop the logging of events.
