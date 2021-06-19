@@ -139,7 +139,7 @@ void sim_exit(int i)
 
     // Print performance information.
     fprintf(stderr,
-            "Simulation speed:\n%12.6f Mticks/s\n%12.6f Minsns/s\n%5d.%06d sec elapsed\n%5d.%06d sec user\n%5d.%06d sec system\n",
+            "\nSimulation speed:\n%12.6f Mticks/s\n%12.6f Minsns/s\n%5d.%06d sec elapsed\n%5d.%06d sec user\n%5d.%06d sec system\n",
             ((float)cycleCount)/ 1000000.0 / ((float)wall_secs + wall_usecs / 1000000.0),
             ((float)insnCount) / 1000000.0 / ((float)wall_secs + wall_usecs / 1000000.0),
             wall_secs, wall_usecs,
