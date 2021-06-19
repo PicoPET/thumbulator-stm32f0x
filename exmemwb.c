@@ -381,8 +381,9 @@ u32 (* executeJumpTable[64])() = { \
 
 void exwbmem(const u16 pInsn)
 {
-    if(tracingActive)
-      ++insnCount;
+    // Insn count does not depend on tracing.
+    // if(tracingActive)
+    ++insnCount;
     insn = pInsn;
 
     // Increment global opcode stats.
